@@ -61,6 +61,7 @@ public class JourneyMapPlugin implements IClientPlugin {
                 case MAPPING_STARTED:
                     JourneyFactions.LOGGER.info("JourneyMap mapping started - creating overlays");
                     overlayManager.onMappingStarted();
+                    JourneyMapDebugTests.runAllDebugTests(jmAPI);
                     break;
                 case MAPPING_STOPPED:
                     JourneyFactions.LOGGER.info("JourneyMap mapping stopped");
