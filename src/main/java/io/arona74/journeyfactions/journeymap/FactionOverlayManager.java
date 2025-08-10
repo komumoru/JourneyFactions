@@ -6,11 +6,13 @@ import io.arona74.journeyfactions.data.ClientFactionManager;
 import journeymap.client.api.IClientAPI;
 import journeymap.client.api.display.Context;
 import journeymap.client.api.display.PolygonOverlay;
+import journeymap.client.api.model.MapPolygon;
 import journeymap.client.api.model.ShapeProperties;
 import journeymap.client.api.model.TextProperties;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.world.World;
 
 import java.awt.*;
 import java.util.*;
@@ -20,14 +22,10 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     
     private final IClientAPI jmAPI;
     private final Map<String, PolygonOverlay> factionOverlays;
-    private final MinecraftClient mc;
-    private final FactionPolygonBuilder polygonBuilder;
     
     public FactionOverlayManager(IClientAPI jmAPI) {
         this.jmAPI = jmAPI;
         this.factionOverlays = new HashMap<>();
-        this.mc = MinecraftClient.getInstance();
-        this.polygonBuilder = new FactionPolygonBuilder();
     }
     
     public void onMappingStarted() {
@@ -41,22 +39,25 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     }
     
     public void updateDisplay() {
-        if (mc.world == null || mc.player == null) return;
-        
         // Refresh overlays periodically
         loadAllFactionOverlays();
     }
     
     private void loadAllFactionOverlays() {
-        if (mc.world == null) return;
-        
         try {
+            JourneyFactions.LOGGER.info("Loading faction overlays...");
             Collection<ClientFaction> factions = JourneyFactions.getFactionManager().getAllFactions();
+            JourneyFactions.LOGGER.info("Found {} factions to process", factions.size());
             
             for (ClientFaction faction : factions) {
+                JourneyFactions.LOGGER.info("Processing faction: {} (type: {}, chunks: {})", 
+                    faction.getName(), faction.getType(), faction.getClaimedChunks().size());
+                
                 // Only display factions that have claimed territory
                 if (!faction.getClaimedChunks().isEmpty()) {
                     createOrUpdateFactionOverlay(faction);
+                } else {
+                    JourneyFactions.LOGGER.info("Skipping faction {} - no claimed chunks", faction.getName());
                 }
             }
             
@@ -68,9 +69,13 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     private void createOrUpdateFactionOverlay(ClientFaction faction) {
         String factionId = faction.getId();
         
+        JourneyFactions.LOGGER.info("Creating overlay for faction: {} (type: {})", faction.getName(), faction.getType());
+        
         // Skip wilderness and other system factions for now
         if (faction.getType() != ClientFaction.FactionType.PLAYER) {
-            return;
+            JourneyFactions.LOGGER.info("Skipping non-player faction: {} (but showing for testing)", faction.getName());
+            // Temporarily allow all factions for testing
+            // return;
         }
         
         // Remove existing overlay if it exists
@@ -78,21 +83,36 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         
         // Get faction's claimed chunks
         Set<ChunkPos> claimedChunks = faction.getClaimedChunks();
-        if (claimedChunks.isEmpty()) return;
+        if (claimedChunks.isEmpty()) {
+            JourneyFactions.LOGGER.info("No claimed chunks for faction: {}", faction.getName());
+            return;
+        }
+        
+        JourneyFactions.LOGGER.info("Faction {} has {} claimed chunks", faction.getName(), claimedChunks.size());
         
         try {
             // Build polygon from chunks
-            List<BlockPos> polygonPoints = polygonBuilder.buildPolygonFromChunks(claimedChunks);
-            if (polygonPoints.isEmpty()) return;
+            MapPolygon mapPolygon = buildMapPolygon(claimedChunks);
+            if (mapPolygon == null) {
+                JourneyFactions.LOGGER.warn("Failed to build polygon for faction: {}", faction.getName());
+                return;
+            }
             
-            // Create the overlay
+            JourneyFactions.LOGGER.info("Built polygon for faction: {}", faction.getName());
+            
+            // Get current world - we'll use overworld as default
+            RegistryKey<World> worldKey = World.OVERWORLD;
+            
+            // Create the overlay with correct constructor
             PolygonOverlay overlay = new PolygonOverlay(
                 JourneyFactions.MOD_ID, 
                 factionId,
-                mc.world.getRegistryKey(),
+                worldKey,
                 createShapeProperties(faction),
-                polygonPoints
+                mapPolygon
             );
+            
+            JourneyFactions.LOGGER.info("Created PolygonOverlay for faction: {}", faction.getName());
             
             // Set display properties
             overlay.setActiveUIs(EnumSet.of(Context.UI.Any));
@@ -102,15 +122,68 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
             overlay.setTextProperties(createTextProperties(faction));
             overlay.setLabel(faction.getDisplayName());
             
-            // Add to JourneyMap
-            jmAPI.show(overlay);
-            factionOverlays.put(factionId, overlay);
+            JourneyFactions.LOGGER.info("Configured overlay properties for faction: {}", faction.getName());
             
-            JourneyFactions.LOGGER.debug("Created overlay for faction: {} with {} chunks", 
-                faction.getName(), claimedChunks.size());
+            // Add to JourneyMap
+            try {
+                jmAPI.show(overlay);
+                factionOverlays.put(factionId, overlay);
+                
+                JourneyFactions.LOGGER.info("Successfully added overlay to JourneyMap for faction: {} with {} chunks", 
+                    faction.getName(), claimedChunks.size());
+                    
+            } catch (Exception e) {
+                JourneyFactions.LOGGER.error("Failed to add overlay to JourneyMap for faction: {} - {}", 
+                    faction.getName(), e.getMessage());
+                JourneyFactions.LOGGER.info("This might be because JourneyMap isn't fully initialized yet. Will retry when mapping starts.");
+                // Don't throw - just log and continue
+            }
             
         } catch (Exception e) {
             JourneyFactions.LOGGER.error("Failed to create overlay for faction: " + factionId, e);
+        }
+    }
+    
+    private MapPolygon buildMapPolygon(Set<ChunkPos> chunks) {
+        try {
+            JourneyFactions.LOGGER.info("Building polygon from {} chunks", chunks.size());
+            
+            // Create a simple polygon from chunk boundaries
+            List<BlockPos> points = new ArrayList<>();
+            
+            // For now, create individual rectangles for each chunk
+            // TODO: Implement proper polygon merging for connected chunks
+            for (ChunkPos chunk : chunks) {
+                int worldX = chunk.x * 16;
+                int worldZ = chunk.z * 16;
+                
+                JourneyFactions.LOGGER.info("Processing chunk at ({}, {}) -> world coords ({}, {})", 
+                    chunk.x, chunk.z, worldX, worldZ);
+                
+                // Create rectangle for this chunk (16x16 blocks)
+                points.add(new BlockPos(worldX, 64, worldZ));
+                points.add(new BlockPos(worldX + 16, 64, worldZ));
+                points.add(new BlockPos(worldX + 16, 64, worldZ + 16));
+                points.add(new BlockPos(worldX, 64, worldZ + 16));
+                points.add(new BlockPos(worldX, 64, worldZ)); // Close the polygon
+                break; // For now, just do the first chunk to test
+            }
+            
+            JourneyFactions.LOGGER.info("Created polygon with {} points", points.size());
+            
+            if (points.isEmpty()) {
+                JourneyFactions.LOGGER.warn("No points generated for polygon");
+                return null;
+            }
+            
+            // Create MapPolygon from BlockPos list
+            MapPolygon polygon = new MapPolygon(points);
+            JourneyFactions.LOGGER.info("Successfully created MapPolygon");
+            return polygon;
+            
+        } catch (Exception e) {
+            JourneyFactions.LOGGER.error("Error building map polygon", e);
+            return null;
         }
     }
     
@@ -161,9 +234,7 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     // FactionUpdateListener implementation
     @Override
     public void onFactionUpdated(ClientFaction faction) {
-        if (mc.world != null) {
-            createOrUpdateFactionOverlay(faction);
-        }
+        createOrUpdateFactionOverlay(faction);
     }
     
     @Override
@@ -192,40 +263,5 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     @Override
     public void onDataCleared() {
         clearAllOverlays();
-    }
-    
-    /**
-     * Helper class to build proper polygon boundaries from chunk sets
-     */
-    private static class FactionPolygonBuilder {
-        
-        public List<BlockPos> buildPolygonFromChunks(Set<ChunkPos> chunks) {
-            if (chunks.isEmpty()) return new ArrayList<>();
-            
-            // For now, create simple rectangles for each chunk
-            // TODO: Implement proper polygon merging for better visuals
-            List<BlockPos> allPoints = new ArrayList<>();
-            
-            for (ChunkPos chunk : chunks) {
-                allPoints.addAll(getChunkBoundary(chunk));
-            }
-            
-            return allPoints;
-        }
-        
-        private List<BlockPos> getChunkBoundary(ChunkPos chunk) {
-            int worldX = chunk.x * 16;
-            int worldZ = chunk.z * 16;
-            int y = 64; // Use a fixed Y level for the overlay
-            
-            // Create rectangle for this chunk (16x16 blocks)
-            return Arrays.asList(
-                new BlockPos(worldX, y, worldZ),
-                new BlockPos(worldX + 16, y, worldZ),
-                new BlockPos(worldX + 16, y, worldZ + 16),
-                new BlockPos(worldX, y, worldZ + 16),
-                new BlockPos(worldX, y, worldZ) // Close the polygon
-            );
-        }
     }
 }

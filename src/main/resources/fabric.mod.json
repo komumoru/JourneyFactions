@@ -2,9 +2,8 @@
   "schemaVersion": 1,
   "id": "journeyfactions",
   "version": "${version}",
-
   "name": "JourneyFactions",
-  "description": "A client-side companion mod that displays factions territories on JourneyMap",
+  "description": "A client-side companion mod that displays faction territories on JourneyMap",
   "authors": [
     "Arona74"
   ],
@@ -12,20 +11,20 @@
     "homepage": "https://github.com/Arona74/JourneyFactions",
     "sources": "https://github.com/Arona74/JourneyFactions"
   },
-
-  "license": "MIT",
+  "license": "GPL-3.0",
   "icon": "assets/journeyfactions/icon.png",
-
   "environment": "client",
   "entrypoints": {
     "client": [
       "io.arona74.journeyfactions.JourneyFactions"
+    ],
+    "journeymap": [
+      "io.arona74.journeyfactions.journeymap.JourneyMapPlugin"
     ]
   },
   "mixins": [
     "journeyfactions.mixins.json"
   ],
-  
   "depends": {
     "fabricloader": ">=0.14.21",
     "minecraft": "~1.20.1",
@@ -38,7 +37,7 @@
   "custom": {
     "modmenu": {
       "badges": ["client"],
-      "description": "Display factions territories on JourneyMap"
+      "description": "Display faction territories on JourneyMap"
     }
   }
 }

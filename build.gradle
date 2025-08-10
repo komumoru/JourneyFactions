@@ -8,17 +8,32 @@ version = project.mod_version
 group = project.maven_group
 
 repositories {
+    // JourneyMap API repositories
     maven {
-        name = 'JourneyMap Maven'
-        url = 'https://jm.gserv.me/repository/maven-public/'
+        name = "JourneyMap (Public)"
+        url = "https://jm.gserv.me/repository/maven-public/"
     }
+    maven {
+        name = "New JourneyMap Maven"
+        url = 'https://maven.blamejared.com'
+    }
+    // Add Modrinth Maven for JourneyMap
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+    }
+}
+
+configurations.all {
+    // Check for snapshots more frequently than Gradle's default of 1 day
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
 loom {
     splitEnvironmentSourceSets()
-    
+   
     mods {
-        "factions-journeymap-client" {
+        "journeyfactions" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
         }
@@ -29,19 +44,17 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-
-    // JourneyMap integration
-    modCompileOnly "info.journeymap:journeymap-api:1.20.1-2.0.0-SNAPSHOT"
-    modRuntimeOnly "info.journeymap:journeymap:1.20.1-5.10.3"
     
-    // Optional: depend on your server-side factions mod for shared packet classes
-    // modCompileOnly "io.arona74:factions:${project.factions_version}"
+    // Try more recent Fabric API version
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.92.2+1.20.1"
+    
+    // JourneyMap API
+    modApi("info.journeymap:journeymap-api:1.20-1.9-fabric-SNAPSHOT") { changing = true }
 }
 
 processResources {
     inputs.property "version", project.version
-    
+   
     filesMatching("fabric.mod.json") {
         expand "version": project.version
     }
@@ -55,6 +68,6 @@ java {
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.base.archivesBaseName.get()}" }
+        rename { "${it}_${project.archives_base_name}" }
     }
 }

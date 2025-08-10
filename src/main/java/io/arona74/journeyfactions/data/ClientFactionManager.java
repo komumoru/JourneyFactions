@@ -1,7 +1,6 @@
 package io.arona74.journeyfactions.data;
 
 import io.arona74.journeyfactions.JourneyFactions;
-import io.arona74.journeyfactions.events.FactionUpdateEvent;
 import net.minecraft.util.math.ChunkPos;
 
 import java.util.*;

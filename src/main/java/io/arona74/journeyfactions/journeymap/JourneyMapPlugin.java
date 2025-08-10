@@ -5,32 +5,46 @@ import journeymap.client.api.IClientAPI;
 import journeymap.client.api.IClientPlugin;
 import journeymap.client.api.event.ClientEvent;
 
-import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.EnumSet;
 
-@ParametersAreNonnullByDefault
 public class JourneyMapPlugin implements IClientPlugin {
     
     private static final String PLUGIN_ID = "journeyfactions";
     private IClientAPI jmAPI;
     private FactionOverlayManager overlayManager;
     
+    public JourneyMapPlugin() {
+        JourneyFactions.LOGGER.info("JourneyMapPlugin constructor called");
+    }
+    
     @Override
     public void initialize(IClientAPI jmClientApi) {
+        JourneyFactions.LOGGER.info("JourneyMapPlugin.initialize() called");
+        
         this.jmAPI = jmClientApi;
         this.overlayManager = new FactionOverlayManager(jmClientApi);
         
         JourneyFactions.LOGGER.info("JourneyMap integration initialized");
         
-        // Subscribe to relevant events
-        jmClientApi.subscribe(getModId(), EnumSet.of(
-            ClientEvent.Type.MAPPING_STARTED,
-            ClientEvent.Type.MAPPING_STOPPED,
-            ClientEvent.Type.DISPLAY_UPDATE
-        ));
-        
-        // Connect to faction manager for updates
-        JourneyFactions.getFactionManager().addListener(overlayManager);
+        try {
+            // Subscribe to relevant events
+            jmClientApi.subscribe(getModId(), EnumSet.of(
+                ClientEvent.Type.MAPPING_STARTED,
+                ClientEvent.Type.MAPPING_STOPPED,
+                ClientEvent.Type.DISPLAY_UPDATE
+            ));
+            JourneyFactions.LOGGER.info("Subscribed to JourneyMap events");
+            
+            // Connect to faction manager for updates
+            JourneyFactions.getFactionManager().addListener(overlayManager);
+            JourneyFactions.LOGGER.info("Connected to faction manager");
+            
+            // DO NOT call onMappingStarted() here - wait for the actual event!
+            JourneyFactions.LOGGER.info("Plugin initialization complete - waiting for mapping events");
+            
+        } catch (Exception e) {
+            JourneyFactions.LOGGER.error("Error during JourneyMap plugin initialization", e);
+        }
     }
     
     @Override
@@ -40,16 +54,25 @@ public class JourneyMapPlugin implements IClientPlugin {
     
     @Override
     public void onEvent(ClientEvent event) {
-        switch (event.type) {
-            case MAPPING_STARTED:
-                overlayManager.onMappingStarted();
-                break;
-            case MAPPING_STOPPED:
-                overlayManager.onMappingStopped();
-                break;
-            case DISPLAY_UPDATE:
-                overlayManager.updateDisplay();
-                break;
+        JourneyFactions.LOGGER.info("JourneyMap event received: {}", event.type);
+        
+        try {
+            switch (event.type) {
+                case MAPPING_STARTED:
+                    JourneyFactions.LOGGER.info("JourneyMap mapping started - creating overlays");
+                    overlayManager.onMappingStarted();
+                    break;
+                case MAPPING_STOPPED:
+                    JourneyFactions.LOGGER.info("JourneyMap mapping stopped");
+                    overlayManager.onMappingStopped();
+                    break;
+                case DISPLAY_UPDATE:
+                    JourneyFactions.LOGGER.debug("JourneyMap display update");
+                    overlayManager.updateDisplay();
+                    break;
+            }
+        } catch (Exception e) {
+            JourneyFactions.LOGGER.error("Error handling JourneyMap event: " + event.type, e);
         }
     }
     
