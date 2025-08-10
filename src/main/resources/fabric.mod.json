@@ -19,7 +19,7 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "net.arona74.journeyfactions.JourneyFactions"
+      "io.arona74.journeyfactions.JourneyFactions"
     ]
   },
   "mixins": [
