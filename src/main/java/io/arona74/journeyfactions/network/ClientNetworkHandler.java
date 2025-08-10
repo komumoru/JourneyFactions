@@ -116,10 +116,15 @@ public class ClientNetworkHandler {
             faction.setType(ClientFaction.FactionType.values()[typeOrdinal]);
         }
         
-        // Read color (optional, may use default if not provided)
-        if (buf.readBoolean()) {
+        // Read color (server should always provide this)
+        boolean hasColor = buf.readBoolean();
+        if (hasColor) {
             int colorRGB = buf.readInt();
             faction.setColor(new Color(colorRGB));
+            JourneyFactions.LOGGER.debug("Faction {} received color: #{}", 
+                name, Integer.toHexString(colorRGB).toUpperCase());
+        } else {
+            JourneyFactions.LOGGER.warn("Faction {} did not receive color from server, using fallback", name);
         }
         
         // Read claimed chunks

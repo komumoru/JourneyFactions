@@ -31,7 +31,7 @@ public class ClientFaction {
         this.name = name;
         this.displayName = name;
         this.claimedChunks = new HashSet<>();
-        this.color = generateColorFromName(name);
+        this.color = null; // Will be set from server data
         this.type = FactionType.PLAYER;
         this.lastUpdated = System.currentTimeMillis();
     }
@@ -92,8 +92,13 @@ public class ClientFaction {
     }
 
     // Utility methods
+    public Color getEffectiveColor() {
+        // Return server-provided color, or generate fallback if not set
+        return color != null ? color : generateColorFromName(name);
+    }
+
     private Color generateColorFromName(String name) {
-        // Generate a consistent color based on faction name
+        // Fallback color generation when server doesn't provide color
         int hash = name.hashCode();
         float hue = Math.abs(hash % 360) / 360.0f;
         float saturation = 0.7f + (Math.abs(hash >> 8) % 30) / 100.0f; // 0.7-1.0

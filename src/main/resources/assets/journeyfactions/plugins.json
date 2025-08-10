@@ -1,0 +1,8 @@
+{
+  "clientPlugins": [
+    {
+      "className": "io.arona74.journeyfactions.journeymap.JourneyMapPlugin",
+      "modId": "journeyfactions"
+    }
+  ]
+}

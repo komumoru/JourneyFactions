@@ -4,6 +4,7 @@ import io.arona74.journeyfactions.data.ClientFactionManager;
 import io.arona74.journeyfactions.network.ClientNetworkHandler;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,9 +30,23 @@ public class JourneyFactions implements ClientModInitializer {
 		journeyMapLoaded = FabricLoader.getInstance().isModLoaded("journeymap");
 		if (journeyMapLoaded) {
 			LOGGER.info("JourneyMap detected - map integration will be available");
+			// JourneyMap plugin will be automatically initialized via plugins.json
 		} else {
 			LOGGER.warn("JourneyMap not detected - mod will function in minimal mode");
 		}
+
+		// Handle client connection events
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			// Request faction data when joining a server
+			ClientNetworkHandler.requestFactionData();
+		});
+
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			// Clear faction data when disconnecting
+			if (factionManager != null) {
+				factionManager.clear();
+			}
+		});
 
 		// Handle client lifecycle events
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
