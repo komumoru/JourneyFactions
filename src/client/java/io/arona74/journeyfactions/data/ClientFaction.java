@@ -5,7 +5,6 @@ import net.minecraft.util.math.ChunkPos;
 import java.awt.Color;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Client-side representation of a faction with minimal data needed for map display

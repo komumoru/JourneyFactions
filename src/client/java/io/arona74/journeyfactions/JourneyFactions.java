@@ -36,50 +36,7 @@ public class JourneyFactions implements ClientModInitializer {
 			LOGGER.info("JourneyMap not detected - mod will function in data collection mode");
 		}
 
-		// Use alternative method for connection events if Fabric API imports don't work
-		try {
-			setupConnectionEvents();
-		} catch (Exception e) {
-			LOGGER.warn("Could not set up connection events - using fallback method: {}", e.getMessage());
-			// Fallback: request data after a delay
-			scheduleDataRequest();
-		}
-
 		LOGGER.info("JourneyFactions client mod initialized successfully");
-	}
-
-	private void setupConnectionEvents() {
-		// Try to set up connection events using reflection if direct imports fail
-		try {
-			Class<?> connectionEventsClass = Class.forName("net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents");
-			Object joinEvent = connectionEventsClass.getField("JOIN").get(null);
-			Object disconnectEvent = connectionEventsClass.getField("DISCONNECT").get(null);
-			
-			// If we get here, the classes exist and we can use them
-			// For now, just log success
-			LOGGER.info("Connection events available - setting up handlers");
-			
-			// TODO: Set up actual handlers using reflection if needed
-			scheduleDataRequest();
-			
-		} catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
-			LOGGER.debug("Connection events not available: {}", e.getMessage());
-			// Don't re-throw, just handle gracefully
-			scheduleDataRequest();
-		}
-	}
-
-	private void scheduleDataRequest() {
-		// Alternative approach: schedule data request after a delay
-		new Thread(() -> {
-			try {
-				Thread.sleep(3000); // Wait 3 seconds for everything to initialize
-				LOGGER.info("Scheduled faction data request");
-				ClientNetworkHandler.requestFactionData();
-			} catch (Exception e) {
-				LOGGER.warn("Scheduled data request failed", e);
-			}
-		}).start();
 	}
 
 	// Keep test faction creation as a separate method for debugging

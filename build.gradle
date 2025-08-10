@@ -44,9 +44,7 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    
-    // Try more recent Fabric API version
-    modImplementation "net.fabricmc.fabric-api:fabric-api:0.92.2+1.20.1"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     
     // JourneyMap API
     modApi("info.journeymap:journeymap-api:1.20-1.9-fabric-SNAPSHOT") { changing = true }
@@ -68,6 +66,6 @@ java {
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.archives_base_name}" }
+        rename { "${it}_${project.archivesBaseName}" }
     }
 }
