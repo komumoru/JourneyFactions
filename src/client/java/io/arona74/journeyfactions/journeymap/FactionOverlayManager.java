@@ -7,8 +7,10 @@ import journeymap.client.api.IClientAPI;
 import journeymap.client.api.display.Context;
 import journeymap.client.api.display.PolygonOverlay;
 import journeymap.client.api.model.MapPolygon;
+import journeymap.client.api.model.MapPolygonWithHoles;
 import journeymap.client.api.model.ShapeProperties;
 import journeymap.client.api.model.TextProperties;
+import journeymap.client.api.util.PolygonHelper;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.registry.RegistryKey;
@@ -26,6 +28,9 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     public FactionOverlayManager(IClientAPI jmAPI) {
         this.jmAPI = jmAPI;
         this.factionOverlays = new HashMap<>();
+        
+        // Initialize the display manager
+        FactionDisplayManager.initialize(this);
     }
     
     public void onMappingStarted() {
@@ -41,6 +46,36 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     public void updateDisplay() {
         // Refresh overlays periodically
         loadAllFactionOverlays();
+    }
+    
+    /**
+     * Update visibility of all faction overlays
+     */
+    public void updateAllOverlayVisibility(boolean visible) {
+        try {
+            if (visible) {
+                // Show all overlays by adding them to JourneyMap
+                for (PolygonOverlay overlay : factionOverlays.values()) {
+                    jmAPI.show(overlay);
+                }
+                JourneyFactions.LOGGER.info("Showed {} faction overlays", factionOverlays.size());
+            } else {
+                // Hide all overlays by removing them from JourneyMap
+                for (PolygonOverlay overlay : factionOverlays.values()) {
+                    jmAPI.remove(overlay);
+                }
+                JourneyFactions.LOGGER.info("Hid {} faction overlays", factionOverlays.size());
+            }
+        } catch (Exception e) {
+            JourneyFactions.LOGGER.error("Error updating overlay visibility", e);
+        }
+    }
+    
+    /**
+     * Get the current number of active overlays
+     */
+    public int getOverlayCount() {
+        return factionOverlays.size();
     }
     
     private void loadAllFactionOverlays() {
@@ -89,8 +124,8 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         JourneyFactions.LOGGER.info("Faction {} has {} claimed chunks", faction.getName(), claimedChunks.size());
         
         try {
-            // Build merged polygon from chunks
-            List<MapPolygon> mapPolygons = buildAllPolygons(claimedChunks);
+            // Build polygons using JourneyMap's PolygonHelper for all disconnected regions
+            List<MapPolygon> mapPolygons = buildPolygonsUsingJourneyMapHelper(claimedChunks);
             if (mapPolygons.isEmpty()) {
                 JourneyFactions.LOGGER.warn("Failed to build polygons for faction: {}", faction.getName());
                 return;
@@ -118,18 +153,29 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                 overlay.setActiveUIs(EnumSet.of(Context.UI.Any));
                 overlay.setActiveMapTypes(EnumSet.of(Context.MapType.Any));
                 
-                // Add label only to the first/largest region to avoid clutter
-                if (i == 0) {
-                    overlay.setTextProperties(createTextProperties(faction));
+                // Add label to ALL regions (not just the first one)
+                overlay.setTextProperties(createTextProperties(faction));
+                
+                // For multiple regions, add region number to distinguish them
+                if (mapPolygons.size() > 1) {
+                    overlay.setLabel(faction.getDisplayName() + " #" + (i + 1));
+                } else {
                     overlay.setLabel(faction.getDisplayName());
                 }
                 
-                // Add to JourneyMap
+                // Set additional properties
+                overlay.setOverlayGroupName("faction_territories");
+                overlay.setTitle(faction.getDisplayName() + " Territory");
+                
+                // Add to JourneyMap (visibility is controlled by showing/removing overlays)
                 try {
-                    jmAPI.show(overlay);
+                    // Only show if faction display is enabled
+                    if (FactionDisplayManager.isFactionDisplayEnabled()) {
+                        jmAPI.show(overlay);
+                    }
                     factionOverlays.put(overlayId, overlay);
                     
-                    JourneyFactions.LOGGER.info("Successfully added overlay {} to JourneyMap for faction: {}", 
+                    JourneyFactions.LOGGER.info("Successfully created overlay {} for faction: {}", 
                         overlayId, faction.getName());
                         
                 } catch (Exception e) {
@@ -147,248 +193,97 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     }
     
     /**
-     * Build all polygons for a faction's chunks, including disconnected regions
+     * Build polygons using JourneyMap's official PolygonHelper for proper rendering
      */
-    private List<MapPolygon> buildAllPolygons(Set<ChunkPos> chunks) {
+    private List<MapPolygon> buildPolygonsUsingJourneyMapHelper(Set<ChunkPos> chunks) {
         try {
-            int chunkCount = chunks.size();
-            JourneyFactions.LOGGER.info("Building all polygons from {} chunks", chunkCount);
+            JourneyFactions.LOGGER.info("Building polygons using JourneyMap PolygonHelper for {} chunks", chunks.size());
             
             List<MapPolygon> polygons = new ArrayList<>();
             
-            if (chunkCount == 1) {
-                // Single chunk - create simple rectangle
-                ChunkPos chunk = chunks.iterator().next();
-                List<BlockPos> boundary = createChunkRectangle(chunk);
-                polygons.add(new MapPolygon(boundary));
-                JourneyFactions.LOGGER.info("Created single chunk rectangle");
-            } else if (isRectangularRegion(chunks)) {
-                // Perfect rectangular region - create precise rectangle
-                List<BlockPos> boundary = createPreciseRectangle(chunks);
-                polygons.add(new MapPolygon(boundary));
-                JourneyFactions.LOGGER.info("Created precise rectangle for {} chunks", chunkCount);
-            } else {
-                // Complex shape - create chunk-aligned boundary for each region
-                List<List<BlockPos>> boundaries = createAllChunkAlignedBoundaries(chunks);
-                for (List<BlockPos> boundary : boundaries) {
-                    if (!boundary.isEmpty()) {
-                        polygons.add(new MapPolygon(boundary));
+            // Find all disconnected regions
+            List<Set<ChunkPos>> regions = findConnectedRegions(chunks);
+            JourneyFactions.LOGGER.info("Found {} disconnected regions", regions.size());
+            
+            // Sort regions by size (largest first) so the main region gets the label
+            regions.sort((a, b) -> Integer.compare(b.size(), a.size()));
+            
+            for (int i = 0; i < regions.size(); i++) {
+                Set<ChunkPos> region = regions.get(i);
+                JourneyFactions.LOGGER.info("Processing region {} with {} chunks", i + 1, region.size());
+                
+                try {
+                    // Use JourneyMap's PolygonHelper.createChunksPolygon()
+                    // This creates optimal polygons with holes support
+                    List<MapPolygonWithHoles> polygonsWithHoles = PolygonHelper.createChunksPolygon(region, 70);
+                    
+                    if (polygonsWithHoles != null && !polygonsWithHoles.isEmpty()) {
+                        // Extract the hull (outer boundary) from each MapPolygonWithHoles
+                        for (MapPolygonWithHoles polyWithHoles : polygonsWithHoles) {
+                            // Access the public hull field directly
+                            MapPolygon hull = polyWithHoles.hull;
+                            if (hull != null) {
+                                polygons.add(hull);
+                                JourneyFactions.LOGGER.info("Successfully created polygon using PolygonHelper for region {}", i + 1);
+                            } else {
+                                JourneyFactions.LOGGER.warn("Hull is null for MapPolygonWithHoles in region {}", i + 1);
+                            }
+                        }
+                    } else {
+                        JourneyFactions.LOGGER.warn("PolygonHelper returned empty result for region {}, using fallback", i + 1);
+                        
+                        // Fallback: create simple polygon manually
+                        MapPolygon fallbackPolygon = createFallbackPolygon(region);
+                        if (fallbackPolygon != null) {
+                            polygons.add(fallbackPolygon);
+                            JourneyFactions.LOGGER.info("Created fallback polygon for region {}", i + 1);
+                        }
+                    }
+                    
+                } catch (Exception e) {
+                    JourneyFactions.LOGGER.error("Error creating polygon for region {} with PolygonHelper: {}", i + 1, e.getMessage());
+                    
+                    // Fallback: create simple polygon manually
+                    try {
+                        MapPolygon fallbackPolygon = createFallbackPolygon(region);
+                        if (fallbackPolygon != null) {
+                            polygons.add(fallbackPolygon);
+                            JourneyFactions.LOGGER.info("Created fallback polygon for region {}", i + 1);
+                        }
+                    } catch (Exception fallbackError) {
+                        JourneyFactions.LOGGER.error("Fallback polygon creation also failed for region {}: {}", i + 1, fallbackError.getMessage());
                     }
                 }
-                JourneyFactions.LOGGER.info("Created {} chunk-aligned boundaries for {} chunks", 
-                    boundaries.size(), chunkCount);
             }
             
-            JourneyFactions.LOGGER.info("Successfully created {} polygons", polygons.size());
+            JourneyFactions.LOGGER.info("Successfully created {} polygons using PolygonHelper", polygons.size());
             return polygons;
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Error building all polygons", e);
+            JourneyFactions.LOGGER.error("Error building polygons with PolygonHelper", e);
             return new ArrayList<>();
         }
     }
-
-    /**
-     * Build a merged polygon from multiple chunks using chunk-aligned boundaries
-     * @deprecated Use buildAllPolygons for better support of disconnected regions
-     */
-    private MapPolygon buildMergedPolygon(Set<ChunkPos> chunks) {
-        List<MapPolygon> polygons = buildAllPolygons(chunks);
-        return polygons.isEmpty() ? null : polygons.get(0);
-    }
     
     /**
-     * Create chunk-aligned boundaries for all disconnected regions
+     * Create a fallback polygon when PolygonHelper fails
      */
-    private List<List<BlockPos>> createAllChunkAlignedBoundaries(Set<ChunkPos> chunks) {
-        JourneyFactions.LOGGER.info("Creating chunk-aligned boundaries for all regions in {} chunks", chunks.size());
-        
-        // Find all disconnected regions
-        List<Set<ChunkPos>> regions = findConnectedRegions(chunks);
-        JourneyFactions.LOGGER.info("Found {} disconnected regions", regions.size());
-        
-        List<List<BlockPos>> boundaries = new ArrayList<>();
-        
-        // Sort regions by size (largest first) so the main region gets the label
-        regions.sort((a, b) -> Integer.compare(b.size(), a.size()));
-        
-        for (int i = 0; i < regions.size(); i++) {
-            Set<ChunkPos> region = regions.get(i);
-            JourneyFactions.LOGGER.info("Processing region {} with {} chunks", i + 1, region.size());
-            
-            List<BlockPos> boundary = traceChunkBoundary(region);
-            if (!boundary.isEmpty()) {
-                boundaries.add(boundary);
-                JourneyFactions.LOGGER.info("Created boundary for region {} with {} points", i + 1, boundary.size());
-            } else {
-                JourneyFactions.LOGGER.warn("Failed to create boundary for region {} with {} chunks", i + 1, region.size());
-            }
-        }
-        
-        return boundaries;
-    }
-
-    /**
-     * Create a chunk-aligned boundary that follows actual chunk edges (legacy method for single region)
-     */
-    private List<BlockPos> createChunkAlignedBoundary(Set<ChunkPos> chunks) {
-        List<List<BlockPos>> allBoundaries = createAllChunkAlignedBoundaries(chunks);
-        return allBoundaries.isEmpty() ? new ArrayList<>() : allBoundaries.get(0);
-    }
-    
-    /**
-     * Trace the boundary of a connected region by following chunk edges
-     */
-    private List<BlockPos> traceChunkBoundary(Set<ChunkPos> region) {
+    private MapPolygon createFallbackPolygon(Set<ChunkPos> region) {
         if (region.isEmpty()) {
-            return new ArrayList<>();
+            return null;
         }
         
         if (region.size() == 1) {
-            return createChunkRectangle(region.iterator().next());
-        }
-        
-        JourneyFactions.LOGGER.info("Tracing boundary for {} chunks", region.size());
-        
-        // Use a more reliable boundary tracing method
-        return createBoundaryFromChunkGrid(region);
-    }
-    
-    /**
-     * Create boundary by building a grid and walking around the perimeter
-     */
-    private List<BlockPos> createBoundaryFromChunkGrid(Set<ChunkPos> region) {
-        // Find the bounds of the region
-        int minChunkX = region.stream().mapToInt(c -> c.x).min().orElse(0);
-        int maxChunkX = region.stream().mapToInt(c -> c.x).max().orElse(0);
-        int minChunkZ = region.stream().mapToInt(c -> c.z).min().orElse(0);
-        int maxChunkZ = region.stream().mapToInt(c -> c.z).max().orElse(0);
-        
-        // Create a grid to mark which chunks exist
-        boolean[][] grid = new boolean[maxChunkX - minChunkX + 3][maxChunkZ - minChunkZ + 3];
-        
-        // Fill the grid (with 1-block border of false)
-        for (ChunkPos chunk : region) {
-            int gridX = chunk.x - minChunkX + 1;
-            int gridZ = chunk.z - minChunkZ + 1;
-            grid[gridX][gridZ] = true;
-        }
-        
-        // Find boundary points by checking each chunk's corners
-        Set<Point> boundaryPoints = new HashSet<>();
-        
-        for (ChunkPos chunk : region) {
-            int chunkX = chunk.x;
-            int chunkZ = chunk.z;
-            
-            // Check each corner of this chunk
-            addCornerIfBoundary(boundaryPoints, chunkX * 16, chunkZ * 16, region);           // Top-left
-            addCornerIfBoundary(boundaryPoints, (chunkX + 1) * 16, chunkZ * 16, region);     // Top-right  
-            addCornerIfBoundary(boundaryPoints, (chunkX + 1) * 16, (chunkZ + 1) * 16, region); // Bottom-right
-            addCornerIfBoundary(boundaryPoints, chunkX * 16, (chunkZ + 1) * 16, region);     // Bottom-left
-        }
-        
-        // Convert boundary points to ordered polygon
-        return orderBoundaryPoints(boundaryPoints);
-    }
-    
-    /**
-     * Add a corner point if it's on the boundary (has at least one non-claimed neighbor)
-     */
-    private void addCornerIfBoundary(Set<Point> boundaryPoints, int worldX, int worldZ, Set<ChunkPos> region) {
-        // Convert world coordinates back to chunk coordinates
-        int chunkX = worldX / 16;
-        int chunkZ = worldZ / 16;
-        
-        // Check the 4 chunks that share this corner
-        ChunkPos[] cornerChunks = {
-            new ChunkPos(chunkX - 1, chunkZ - 1),  // Top-left chunk
-            new ChunkPos(chunkX, chunkZ - 1),      // Top-right chunk
-            new ChunkPos(chunkX, chunkZ),          // Bottom-right chunk
-            new ChunkPos(chunkX - 1, chunkZ)       // Bottom-left chunk
-        };
-        
-        // Count how many of these chunks are claimed
-        int claimedCount = 0;
-        for (ChunkPos chunk : cornerChunks) {
-            if (region.contains(chunk)) {
-                claimedCount++;
-            }
-        }
-        
-        // Add corner if it's on the boundary (not all 4 chunks claimed, but at least 1 claimed)
-        if (claimedCount > 0 && claimedCount < 4) {
-            boundaryPoints.add(new Point(worldX, worldZ));
+            // Single chunk - create simple rectangle
+            ChunkPos chunk = region.iterator().next();
+            List<BlockPos> boundary = createChunkRectangle(chunk);
+            return new MapPolygon(boundary);
+        } else {
+            // Multiple chunks - create bounding rectangle
+            List<BlockPos> boundary = createBoundingRectangle(region);
+            return new MapPolygon(boundary);
         }
     }
-    
-    /**
-     * Order boundary points into a proper polygon
-     */
-    private List<BlockPos> orderBoundaryPoints(Set<Point> points) {
-        if (points.isEmpty()) {
-            return new ArrayList<>();
-        }
-        
-        List<Point> pointList = new ArrayList<>(points);
-        
-        // Find the centroid
-        double centerX = pointList.stream().mapToInt(p -> p.x).average().orElse(0);
-        double centerZ = pointList.stream().mapToInt(p -> p.z).average().orElse(0);
-        
-        // Sort points by angle from centroid (creates clockwise ordering)
-        pointList.sort((a, b) -> {
-            double angleA = Math.atan2(a.z - centerZ, a.x - centerX);
-            double angleB = Math.atan2(b.z - centerZ, b.x - centerX);
-            return Double.compare(angleA, angleB);
-        });
-        
-        // Convert to BlockPos and close the polygon
-        List<BlockPos> polygon = new ArrayList<>();
-        for (Point p : pointList) {
-            polygon.add(new BlockPos(p.x, 64, p.z));
-        }
-        
-        // Close the polygon
-        if (!polygon.isEmpty()) {
-            polygon.add(polygon.get(0));
-        }
-        
-        JourneyFactions.LOGGER.info("Created ordered polygon with {} points", polygon.size());
-        return polygon;
-    }
-    
-    /**
-     * Simple point class for boundary tracing
-     */
-    private static class Point {
-        final int x, z;
-        
-        Point(int x, int z) {
-            this.x = x;
-            this.z = z;
-        }
-        
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null || getClass() != obj.getClass()) return false;
-            Point point = (Point) obj;
-            return x == point.x && z == point.z;
-        }
-        
-        @Override
-        public int hashCode() {
-            return Objects.hash(x, z);
-        }
-        
-        @Override
-        public String toString() {
-            return String.format("Point(%d,%d)", x, z);
-        }
-    }
-    
-
     
     /**
      * Find connected regions of chunks using flood fill
@@ -435,69 +330,6 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     }
     
     /**
-     * Build the boundary polygon for a connected region of chunks
-     */
-    private List<BlockPos> buildRegionBoundary(Set<ChunkPos> region) {
-        if (region.isEmpty()) {
-            return new ArrayList<>();
-        }
-        
-        if (region.size() == 1) {
-            // Single chunk - create rectangle
-            ChunkPos chunk = region.iterator().next();
-            return createChunkRectangle(chunk);
-        } else if (region.size() <= 4 && isRectangularRegion(region)) {
-            // Small rectangular regions - create precise rectangle
-            return createPreciseRectangle(region);
-        } else {
-            // Complex regions - create bounding rectangle
-            return createBoundingRectangle(region);
-        }
-    }
-    
-    /**
-     * Check if a region forms a perfect rectangle
-     */
-    private boolean isRectangularRegion(Set<ChunkPos> region) {
-        if (region.size() <= 1) return true;
-        
-        int minX = region.stream().mapToInt(c -> c.x).min().orElse(0);
-        int maxX = region.stream().mapToInt(c -> c.x).max().orElse(0);
-        int minZ = region.stream().mapToInt(c -> c.z).min().orElse(0);
-        int maxZ = region.stream().mapToInt(c -> c.z).max().orElse(0);
-        
-        int expectedSize = (maxX - minX + 1) * (maxZ - minZ + 1);
-        
-        // Check if all expected chunks are present
-        if (region.size() != expectedSize) {
-            return false;
-        }
-        
-        // Verify all chunks in the rectangle exist
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                if (!region.contains(new ChunkPos(x, z))) {
-                    return false;
-                }
-            }
-        }
-        
-        return true;
-    }
-    
-    /**
-     * Create a precise rectangle for a perfectly rectangular region
-     */
-    private List<BlockPos> createPreciseRectangle(Set<ChunkPos> region) {
-        int minX = region.stream().mapToInt(c -> c.x).min().orElse(0);
-        int maxX = region.stream().mapToInt(c -> c.x).max().orElse(0);
-        int minZ = region.stream().mapToInt(c -> c.z).min().orElse(0);
-        int maxZ = region.stream().mapToInt(c -> c.z).max().orElse(0);
-        
-        return createBoundingRectangleFromBounds(minX, maxX, minZ, maxZ);
-    }
-    
-    /**
      * Create a rectangle for a single chunk
      */
     private List<BlockPos> createChunkRectangle(ChunkPos chunk) {
@@ -506,11 +338,11 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         int worldZ = chunk.z * 16;
         
         // Create rectangle (clockwise)
-        points.add(new BlockPos(worldX, 64, worldZ));           // Top-left
-        points.add(new BlockPos(worldX + 16, 64, worldZ));      // Top-right
-        points.add(new BlockPos(worldX + 16, 64, worldZ + 16)); // Bottom-right
-        points.add(new BlockPos(worldX, 64, worldZ + 16));      // Bottom-left
-        points.add(new BlockPos(worldX, 64, worldZ));           // Close polygon
+        points.add(new BlockPos(worldX, 70, worldZ));           // Top-left
+        points.add(new BlockPos(worldX + 16, 70, worldZ));      // Top-right
+        points.add(new BlockPos(worldX + 16, 70, worldZ + 16)); // Bottom-right
+        points.add(new BlockPos(worldX, 70, worldZ + 16));      // Bottom-left
+        points.add(new BlockPos(worldX, 70, worldZ));           // Close polygon
         
         return points;
     }
@@ -525,29 +357,20 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         int minZ = chunks.stream().mapToInt(c -> c.z).min().orElse(0);
         int maxZ = chunks.stream().mapToInt(c -> c.z).max().orElse(0);
         
-        return createBoundingRectangleFromBounds(minX, maxX, minZ, maxZ);
-    }
-    
-    /**
-     * Helper method to create rectangle from chunk bounds
-     */
-    private List<BlockPos> createBoundingRectangleFromBounds(int minX, int maxX, int minZ, int maxZ) {
-        List<BlockPos> points = new ArrayList<>();
-        
         // Convert to world coordinates
         int worldMinX = minX * 16;
         int worldMaxX = (maxX + 1) * 16;
         int worldMinZ = minZ * 16;
         int worldMaxZ = (maxZ + 1) * 16;
         
-        // Create bounding rectangle (clockwise)
-        points.add(new BlockPos(worldMinX, 64, worldMinZ));     // Top-left
-        points.add(new BlockPos(worldMaxX, 64, worldMinZ));     // Top-right
-        points.add(new BlockPos(worldMaxX, 64, worldMaxZ));     // Bottom-right
-        points.add(new BlockPos(worldMinX, 64, worldMaxZ));     // Bottom-left
-        points.add(new BlockPos(worldMinX, 64, worldMinZ));     // Close polygon
+        List<BlockPos> points = new ArrayList<>();
+        points.add(new BlockPos(worldMinX, 70, worldMinZ));     // Top-left
+        points.add(new BlockPos(worldMaxX, 70, worldMinZ));     // Top-right
+        points.add(new BlockPos(worldMaxX, 70, worldMaxZ));     // Bottom-right
+        points.add(new BlockPos(worldMinX, 70, worldMaxZ));     // Bottom-left
+        points.add(new BlockPos(worldMinX, 70, worldMinZ));     // Close polygon
         
-        JourneyFactions.LOGGER.info("Created rectangle: ({},{}) to ({},{}) covering {}x{} chunks", 
+        JourneyFactions.LOGGER.info("Created bounding rectangle: ({},{}) to ({},{}) covering {}x{} chunks", 
             worldMinX, worldMinZ, worldMaxX, worldMaxZ, maxX - minX + 1, maxZ - minZ + 1);
         
         return points;
@@ -586,9 +409,9 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         return new ShapeProperties()
             .setStrokeColor(factionColor.getRGB())
             .setFillColor(new Color(factionColor.getRed(), factionColor.getGreen(), 
-                                  factionColor.getBlue(), 30).getRGB()) // Very transparent fill
-            .setStrokeWidth(2.0f)
-            .setFillOpacity(0.2f)
+                                  factionColor.getBlue(), 50).getRGB())
+            .setStrokeWidth(1.5f)
+            .setFillOpacity(0.3f)
             .setStrokeOpacity(0.9f);
     }
     
@@ -602,7 +425,7 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
             .setScale(1.2f);
     }
     
-    private void clearAllOverlays() {
+    public void clearAllOverlays() {
         for (Map.Entry<String, PolygonOverlay> entry : factionOverlays.entrySet()) {
             try {
                 jmAPI.remove(entry.getValue());

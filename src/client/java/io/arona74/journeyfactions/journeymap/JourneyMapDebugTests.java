@@ -1,15 +1,12 @@
 package io.arona74.journeyfactions.journeymap;
 
 import io.arona74.journeyfactions.JourneyFactions;
-import io.arona74.journeyfactions.data.ClientFaction;
 import journeymap.client.api.IClientAPI;
 import journeymap.client.api.display.Context;
 import journeymap.client.api.display.PolygonOverlay;
 import journeymap.client.api.model.MapPolygon;
 import journeymap.client.api.model.ShapeProperties;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 
 import java.awt.Color;

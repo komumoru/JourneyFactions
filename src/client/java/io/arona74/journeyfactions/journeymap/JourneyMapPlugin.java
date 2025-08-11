@@ -39,7 +39,12 @@ public class JourneyMapPlugin implements IClientPlugin {
             JourneyFactions.getFactionManager().addListener(overlayManager);
             JourneyFactions.LOGGER.info("Connected to faction manager");
             
-            // DO NOT call onMappingStarted() here - wait for the actual event!
+            // Initialize the faction toggle button/keybinding
+            FactionToggleButton.initialize(jmClientApi);
+            
+            // Initialize context menu integration
+            JourneyMapContextIntegration.initialize(jmClientApi);
+            
             JourneyFactions.LOGGER.info("Plugin initialization complete - waiting for mapping events");
             
         } catch (Exception e) {
@@ -61,7 +66,6 @@ public class JourneyMapPlugin implements IClientPlugin {
                 case MAPPING_STARTED:
                     JourneyFactions.LOGGER.info("JourneyMap mapping started - creating overlays");
                     overlayManager.onMappingStarted();
-                    JourneyMapDebugTests.runAllDebugTests(jmAPI);
                     break;
                 case MAPPING_STOPPED:
                     JourneyFactions.LOGGER.info("JourneyMap mapping stopped");
@@ -71,17 +75,62 @@ public class JourneyMapPlugin implements IClientPlugin {
                     JourneyFactions.LOGGER.debug("JourneyMap display update");
                     overlayManager.updateDisplay();
                     break;
+                default:
+                    JourneyFactions.LOGGER.debug("Unhandled JourneyMap event: {}", event.type);
+                    break;
             }
         } catch (Exception e) {
             JourneyFactions.LOGGER.error("Error handling JourneyMap event: " + event.type, e);
         }
     }
     
+    /**
+     * Get the JourneyMap API instance
+     */
     public IClientAPI getAPI() {
         return jmAPI;
     }
     
+    /**
+     * Get the faction overlay manager
+     */
     public FactionOverlayManager getOverlayManager() {
         return overlayManager;
+    }
+    
+    /**
+     * Check if the plugin is properly initialized
+     */
+    public boolean isInitialized() {
+        return jmAPI != null && overlayManager != null;
+    }
+    
+    /**
+     * Get plugin information
+     */
+    public String getPluginInfo() {
+        return String.format("JourneyFactions Plugin v1.0 | API: %s | Overlays: %d", 
+            jmAPI != null ? "Connected" : "Disconnected",
+            overlayManager != null ? overlayManager.getOverlayCount() : 0);
+    }
+    
+    /**
+     * Cleanup method for plugin shutdown
+     */
+    public void cleanup() {
+        try {
+            if (overlayManager != null) {
+                overlayManager.clearAllOverlays();
+                JourneyFactions.getFactionManager().removeListener(overlayManager);
+            }
+            
+            FactionToggleButton.cleanup();
+            JourneyMapContextIntegration.cleanup();
+            
+            JourneyFactions.LOGGER.info("JourneyMapPlugin cleanup completed");
+            
+        } catch (Exception e) {
+            JourneyFactions.LOGGER.error("Error during plugin cleanup", e);
+        }
     }
 }
