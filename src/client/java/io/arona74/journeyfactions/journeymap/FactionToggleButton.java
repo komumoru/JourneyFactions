@@ -13,16 +13,13 @@ import org.lwjgl.glfw.GLFW;
  */
 public class FactionToggleButton {
     
-    private static IClientAPI jmAPI;
     private static KeyBinding toggleKeyBinding;
     private static boolean isInitialized = false;
     
     /**
      * Initialize the faction controls
      */
-    public static void initialize(IClientAPI api) {
-        jmAPI = api;
-        
+    public static void initialize(IClientAPI jmAPI) {
         try {
             setupKeybinding();
             isInitialized = true;

@@ -13,13 +13,10 @@ import net.minecraft.util.math.BlockPos;
  */
 public class JourneyMapContextIntegration {
     
-    private static IClientAPI jmAPI;
-    
     /**
      * Initialize the context integration
      */
-    public static void initialize(IClientAPI api) {
-        jmAPI = api;
+    public static void initialize(IClientAPI jmAPI) {
         JourneyFactions.LOGGER.info("JourneyMap context integration initialized");
     }
     
@@ -47,24 +44,6 @@ public class JourneyMapContextIntegration {
             
             // Add open controls screen action
             factionSubmenu.addMenuItemScreen("Faction Settings", new FactionControlsScreen());
-            
-            // Add quick status action
-            factionSubmenu.addMenuItem("Print Status", new ModPopupMenu.Action() {
-                @Override
-                public void doAction(BlockPos blockPos) {
-                    io.arona74.journeyfactions.debug.FactionDebugCommands.printFactionStatus();
-                    showStatusFeedback();
-                }
-            });
-            
-            // Add clear test data action
-            factionSubmenu.addMenuItem("Clear Test Data", new ModPopupMenu.Action() {
-                @Override
-                public void doAction(BlockPos blockPos) {
-                    io.arona74.journeyfactions.debug.FactionDebugCommands.clearTestData();
-                    showClearFeedback();
-                }
-            });
             
             JourneyFactions.LOGGER.debug("Added faction controls to JourneyMap context menu");
             
@@ -145,40 +124,6 @@ public class JourneyMapContextIntegration {
         }
         
         JourneyFactions.LOGGER.info("Faction display toggled via context menu");
-    }
-    
-    /**
-     * Show feedback for status action
-     */
-    private static void showStatusFeedback() {
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.player != null) {
-                client.player.sendMessage(
-                    net.minecraft.text.Text.literal("§eStatus printed to log"), 
-                    true
-                );
-            }
-        } catch (Exception e) {
-            JourneyFactions.LOGGER.debug("Could not send status feedback: {}", e.getMessage());
-        }
-    }
-    
-    /**
-     * Show feedback for clear action
-     */
-    private static void showClearFeedback() {
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.player != null) {
-                client.player.sendMessage(
-                    net.minecraft.text.Text.literal("§eTest data cleared"), 
-                    true
-                );
-            }
-        } catch (Exception e) {
-            JourneyFactions.LOGGER.debug("Could not send clear feedback: {}", e.getMessage());
-        }
     }
     
     /**

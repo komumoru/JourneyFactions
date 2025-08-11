@@ -2,7 +2,6 @@ package io.arona74.journeyfactions;
 
 import io.arona74.journeyfactions.data.ClientFactionManager;
 import io.arona74.journeyfactions.network.ClientNetworkHandler;
-import io.arona74.journeyfactions.debug.FactionDebugCommands;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
@@ -32,9 +31,6 @@ public class JourneyFactions implements ClientModInitializer {
 		} else {
 			LOGGER.info("JourneyMap not detected - mod will function in data collection mode");
 		}
-
-		// Clear any test data on startup
-		FactionDebugCommands.clearTestData();
 
 		LOGGER.info("JourneyFactions client mod initialized successfully");
 		LOGGER.info("Use FactionDebugCommands.printFactionStatus() to check current state");

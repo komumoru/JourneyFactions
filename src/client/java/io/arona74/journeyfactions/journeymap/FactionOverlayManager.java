@@ -153,7 +153,7 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                 overlay.setActiveUIs(EnumSet.of(Context.UI.Any));
                 overlay.setActiveMapTypes(EnumSet.of(Context.MapType.Any));
                 
-                // Add label to ALL regions (not just the first one)
+                // Set text properties
                 overlay.setTextProperties(createTextProperties(faction));
                 
                 // For multiple regions, add region number to distinguish them
@@ -222,12 +222,8 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                         for (MapPolygonWithHoles polyWithHoles : polygonsWithHoles) {
                             // Access the public hull field directly
                             MapPolygon hull = polyWithHoles.hull;
-                            if (hull != null) {
-                                polygons.add(hull);
-                                JourneyFactions.LOGGER.info("Successfully created polygon using PolygonHelper for region {}", i + 1);
-                            } else {
-                                JourneyFactions.LOGGER.warn("Hull is null for MapPolygonWithHoles in region {}", i + 1);
-                            }
+                            polygons.add(hull);
+                            JourneyFactions.LOGGER.info("Successfully created polygon using PolygonHelper for region {}", i + 1);
                         }
                     } else {
                         JourneyFactions.LOGGER.warn("PolygonHelper returned empty result for region {}, using fallback", i + 1);
@@ -408,21 +404,49 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         
         return new ShapeProperties()
             .setStrokeColor(factionColor.getRGB())
-            .setFillColor(new Color(factionColor.getRed(), factionColor.getGreen(), 
-                                  factionColor.getBlue(), 50).getRGB())
+            .setFillColor(new Color(factionColor.getRed(), factionColor.getGreen(), factionColor.getBlue(), 50).getRGB())
             .setStrokeWidth(1.5f)
-            .setFillOpacity(0.3f)
+            .setFillOpacity(0.1f)
             .setStrokeOpacity(0.9f);
     }
     
     private TextProperties createTextProperties(ClientFaction faction) {
         Color factionColor = faction.getEffectiveColor();
         
+        Color backgroundColor;
+        Color textColor;
+
+        // Faction color is black → use lighter background
+        if (factionColor.getRed() == 0 && factionColor.getGreen() == 0 && factionColor.getBlue() == 0) {
+            // Default text
+            textColor = new Color(factionColor.getRGB());
+            // Lighter background
+            backgroundColor = new Color(170, 170, 170, 128);
+            JourneyFactions.LOGGER.info("Faction color is BLACK");
+        } else {
+            // Faction color is dark_gray → use lighter text
+            if (factionColor.getRed() == 85 && factionColor.getGreen() == 85 && factionColor.getBlue() == 85) {
+                // Lighter text
+                textColor = new Color(170, 170, 170, 128);
+                // Default background
+                backgroundColor = new Color(200, 200, 200, 128);
+                JourneyFactions.LOGGER.info("Faction color is DARK_GRAY");
+            } else {
+                // Default text
+                textColor = new Color(factionColor.getRGB());
+                // Default background
+                backgroundColor = new Color(0, 0, 0, 128);
+                JourneyFactions.LOGGER.info("Faction color is ELSE");
+            }
+        }
+
         return new TextProperties()
-            .setColor(factionColor.brighter().getRGB())
-            .setBackgroundColor(new Color(0, 0, 0, 128).getRGB())
-            .setBackgroundOpacity(0.7f)
-            .setScale(1.2f);
+            .setColor(textColor.brighter().getRGB())
+            .setOpacity(0f)
+            .setBackgroundColor(backgroundColor.getRGB())
+            .setBackgroundOpacity(1f)
+            .setScale(1.0f)
+            .setFontShadow(false);
     }
     
     public void clearAllOverlays() {

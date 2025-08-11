@@ -109,7 +109,7 @@ public class JourneyMapPlugin implements IClientPlugin {
      * Get plugin information
      */
     public String getPluginInfo() {
-        return String.format("JourneyFactions Plugin v1.0 | API: %s | Overlays: %d", 
+        return String.format("JourneyFactions Plugin | API: %s | Overlays: %d", 
             jmAPI != null ? "Connected" : "Disconnected",
             overlayManager != null ? overlayManager.getOverlayCount() : 0);
     }

@@ -3,7 +3,6 @@ package io.arona74.journeyfactions.client.gui;
 import io.arona74.journeyfactions.JourneyFactions;
 import io.arona74.journeyfactions.data.ClientFaction;
 import io.arona74.journeyfactions.journeymap.FactionDisplayManager;
-import io.arona74.journeyfactions.debug.FactionDebugCommands;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -24,7 +23,6 @@ public class FactionControlsScreen extends Screen {
     
     private ButtonWidget toggleButton;
     private ButtonWidget statusButton;
-    private ButtonWidget clearTestDataButton;
     private ButtonWidget closeButton;
     
     private int factionCount = 0;
@@ -48,18 +46,6 @@ public class FactionControlsScreen extends Screen {
             button -> toggleFactionDisplay()
         ).dimensions(centerX - BUTTON_WIDTH / 2, startY, BUTTON_WIDTH, BUTTON_HEIGHT).build();
         
-        // Status button
-        this.statusButton = ButtonWidget.builder(
-            Text.literal("Print Status to Log"),
-            button -> printStatus()
-        ).dimensions(centerX - BUTTON_WIDTH / 2, startY + BUTTON_SPACING, BUTTON_WIDTH, BUTTON_HEIGHT).build();
-        
-        // Clear test data button
-        this.clearTestDataButton = ButtonWidget.builder(
-            Text.literal("Clear Test Data"),
-            button -> clearTestData()
-        ).dimensions(centerX - BUTTON_WIDTH / 2, startY + BUTTON_SPACING * 2, BUTTON_WIDTH, BUTTON_HEIGHT).build();
-        
         // Close button
         this.closeButton = ButtonWidget.builder(
             Text.literal("Close"),
@@ -68,7 +54,6 @@ public class FactionControlsScreen extends Screen {
         
         this.addDrawableChild(this.toggleButton);
         this.addDrawableChild(this.statusButton);
-        this.addDrawableChild(this.clearTestDataButton);
         this.addDrawableChild(this.closeButton);
     }
     
@@ -145,30 +130,6 @@ public class FactionControlsScreen extends Screen {
         
         JourneyFactions.LOGGER.info("Faction display toggled via GUI to: {}", 
             FactionDisplayManager.isFactionDisplayEnabled() ? "ENABLED" : "DISABLED");
-    }
-    
-    private void printStatus() {
-        FactionDebugCommands.printFactionStatus();
-        
-        // Update stats on screen
-        updateFactionStats();
-        
-        if (this.client != null && this.client.player != null) {
-            this.client.player.sendMessage(Text.literal("§eStatus printed to log"), true);
-        }
-    }
-    
-    private void clearTestData() {
-        FactionDebugCommands.clearTestData();
-        
-        // Update stats on screen
-        updateFactionStats();
-        
-        if (this.client != null && this.client.player != null) {
-            this.client.player.sendMessage(Text.literal("§eTest data cleared"), true);
-        }
-        
-        JourneyFactions.LOGGER.info("Test data cleared via GUI");
     }
     
     private void updateFactionStats() {
