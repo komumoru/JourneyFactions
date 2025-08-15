@@ -54,10 +54,10 @@ public class JourneyMapDebugTests {
             // NO LABEL - test if triangles still appear
             
             jmAPI.show(overlay);
-            JourneyFactions.LOGGER.info("Created simple test rectangle");
+            // JourneyFactions.LOGGER.info("Created simple test rectangle");
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Failed to create simple test", e);
+            // JourneyFactions.LOGGER.error("Failed to create simple test", e);
         }
     }
     
@@ -95,10 +95,10 @@ public class JourneyMapDebugTests {
             overlay.setLabel("TEST LABEL"); // Add label to see if this causes triangles
             
             jmAPI.show(overlay);
-            JourneyFactions.LOGGER.info("Created labeled test rectangle");
+            // JourneyFactions.LOGGER.info("Created labeled test rectangle");
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Failed to create labeled test", e);
+            // JourneyFactions.LOGGER.error("Failed to create labeled test", e);
         }
     }
     
@@ -142,10 +142,10 @@ public class JourneyMapDebugTests {
                 overlay.setLabel("Y=" + y);
                 
                 jmAPI.show(overlay);
-                JourneyFactions.LOGGER.info("Created test rectangle at Y={}", y);
+                // JourneyFactions.LOGGER.info("Created test rectangle at Y={}", y);
                 
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Failed to create Y level test", e);
+                // JourneyFactions.LOGGER.error("Failed to create Y level test", e);
             }
         }
     }
@@ -190,10 +190,10 @@ public class JourneyMapDebugTests {
                 overlay.setLabel("W=" + width);
                 
                 jmAPI.show(overlay);
-                JourneyFactions.LOGGER.info("Created test rectangle with stroke width={}", width);
+                // JourneyFactions.LOGGER.info("Created test rectangle with stroke width={}", width);
                 
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Failed to create stroke width test", e);
+                // JourneyFactions.LOGGER.error("Failed to create stroke width test", e);
             }
         }
     }
@@ -202,13 +202,13 @@ public class JourneyMapDebugTests {
      * Call this method to run all debug tests
      */
     public static void runAllDebugTests(IClientAPI jmAPI) {
-        JourneyFactions.LOGGER.info("Running JourneyMap debug tests...");
+        // JourneyFactions.LOGGER.info("Running JourneyMap debug tests...");
         
         testSimpleRectangle(jmAPI);
         testRectangleWithLabel(jmAPI);
         testDifferentYLevels(jmAPI);
         testStrokeWidths(jmAPI);
         
-        JourneyFactions.LOGGER.info("Debug tests completed - check the map for results");
+        // JourneyFactions.LOGGER.info("Debug tests completed - check the map for results");
     }
 }

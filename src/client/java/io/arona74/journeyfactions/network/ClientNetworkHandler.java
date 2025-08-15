@@ -27,7 +27,7 @@ public class ClientNetworkHandler {
     public static final Identifier CLIENT_REQUEST_DATA = new Identifier("factions", "client_request_data");
 
     public static void initialize() {
-        JourneyFactions.LOGGER.info("Initializing client network handlers...");
+        // JourneyFactions.LOGGER.info("Initializing client network handlers...");
         
         // Register packet receivers
         registerPacketHandlers();
@@ -35,7 +35,7 @@ public class ClientNetworkHandler {
         // Register connection events
         registerConnectionEvents();
         
-        JourneyFactions.LOGGER.info("Client network handler initialized successfully");
+        // JourneyFactions.LOGGER.info("Client network handler initialized successfully");
     }
 
     private static void registerPacketHandlers() {
@@ -44,7 +44,7 @@ public class ClientNetworkHandler {
             try {
                 // Read faction count
                 int factionCount = buf.readVarInt();
-                JourneyFactions.LOGGER.info("Receiving full faction data sync: {} factions", factionCount);
+                // JourneyFactions.LOGGER.info("Receiving full faction data sync: {} factions", factionCount);
                 
                 // Read all factions
                 Set<ClientFaction> factions = new HashSet<>();
@@ -52,8 +52,8 @@ public class ClientNetworkHandler {
                     ClientFaction faction = readFactionFromBuffer(buf);
                     if (faction != null) {
                         factions.add(faction);
-                        JourneyFactions.LOGGER.debug("Received faction: {} with {} chunks", 
-                            faction.getName(), faction.getClaimedChunks().size());
+                        // JourneyFactions.LOGGER.debug("Received faction: {} with {} chunks", 
+                        //    faction.getName(), faction.getClaimedChunks().size());
                     }
                 }
                 
@@ -68,15 +68,15 @@ public class ClientNetworkHandler {
                             JourneyFactions.getFactionManager().addOrUpdateFaction(faction);
                         }
                         
-                        JourneyFactions.LOGGER.info("Successfully processed {} factions from server", factions.size());
+                        // JourneyFactions.LOGGER.info("Successfully processed {} factions from server", factions.size());
                         
                     } catch (Exception e) {
-                        JourneyFactions.LOGGER.error("Error processing faction data sync", e);
+                        // JourneyFactions.LOGGER.error("Error processing faction data sync", e);
                     }
                 });
                 
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error reading faction data sync packet", e);
+                // JourneyFactions.LOGGER.error("Error reading faction data sync packet", e);
             }
         });
 
@@ -85,14 +85,14 @@ public class ClientNetworkHandler {
             try {
                 ClientFaction faction = readFactionFromBuffer(buf);
                 if (faction != null) {
-                    JourneyFactions.LOGGER.debug("Received faction update: {}", faction.getName());
+                    // JourneyFactions.LOGGER.debug("Received faction update: {}", faction.getName());
                     
                     client.execute(() -> {
                         JourneyFactions.getFactionManager().addOrUpdateFaction(faction);
                     });
                 }
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error processing faction update", e);
+                // JourneyFactions.LOGGER.error("Error processing faction update", e);
             }
         });
 
@@ -104,14 +104,14 @@ public class ClientNetworkHandler {
                 int chunkZ = buf.readInt();
                 
                 ChunkPos chunk = new ChunkPos(chunkX, chunkZ);
-                JourneyFactions.LOGGER.debug("Received chunk claim: {} by faction {}", chunk, factionId);
+                // JourneyFactions.LOGGER.debug("Received chunk claim: {} by faction {}", chunk, factionId);
                 
                 client.execute(() -> {
                     JourneyFactions.getFactionManager().setChunkOwner(chunk, factionId);
                 });
                 
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error processing chunk claim", e);
+                // JourneyFactions.LOGGER.error("Error processing chunk claim", e);
             }
         });
 
@@ -122,7 +122,7 @@ public class ClientNetworkHandler {
                 int chunkZ = buf.readInt();
                 
                 ChunkPos chunk = new ChunkPos(chunkX, chunkZ);
-                JourneyFactions.LOGGER.debug("Received chunk unclaim: {}", chunk);
+                // JourneyFactions.LOGGER.debug("Received chunk unclaim: {}", chunk);
                 
                 client.execute(() -> {
                     // Set to wilderness (null means wilderness)
@@ -130,7 +130,7 @@ public class ClientNetworkHandler {
                 });
                 
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error processing chunk unclaim", e);
+                // JourneyFactions.LOGGER.error("Error processing chunk unclaim", e);
             }
         });
 
@@ -138,24 +138,24 @@ public class ClientNetworkHandler {
         ClientPlayNetworking.registerGlobalReceiver(FACTION_DELETE, (client, handler, buf, responseSender) -> {
             try {
                 String factionId = buf.readString();
-                JourneyFactions.LOGGER.debug("Received faction deletion: {}", factionId);
+                // JourneyFactions.LOGGER.debug("Received faction deletion: {}", factionId);
                 
                 client.execute(() -> {
                     JourneyFactions.getFactionManager().removeFaction(factionId);
                 });
                 
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error processing faction deletion", e);
+                // JourneyFactions.LOGGER.error("Error processing faction deletion", e);
             }
         });
         
-        JourneyFactions.LOGGER.info("Registered all packet handlers");
+        // JourneyFactions.LOGGER.info("Registered all packet handlers");
     }
 
     private static void registerConnectionEvents() {
         // Request faction data when joining a server
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            JourneyFactions.LOGGER.info("Connected to server - requesting faction data");
+            // JourneyFactions.LOGGER.info("Connected to server - requesting faction data");
             
             // Small delay to ensure everything is initialized
             new Thread(() -> {
@@ -164,18 +164,18 @@ public class ClientNetworkHandler {
                     requestFactionData();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    JourneyFactions.LOGGER.warn("Interrupted while waiting to request faction data");
+                    // JourneyFactions.LOGGER.warn("Interrupted while waiting to request faction data");
                 }
             }).start();
         });
 
         // Clear data when disconnecting
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            JourneyFactions.LOGGER.info("Disconnected from server - clearing faction data");
+            // JourneyFactions.LOGGER.info("Disconnected from server - clearing faction data");
             JourneyFactions.getFactionManager().clear();
         });
         
-        JourneyFactions.LOGGER.info("Registered connection event handlers");
+        // JourneyFactions.LOGGER.info("Registered connection event handlers");
     }
 
     /**
@@ -183,16 +183,16 @@ public class ClientNetworkHandler {
      */
     public static void requestFactionData() {
         try {
-            JourneyFactions.LOGGER.info("Requesting faction data from server");
+            // JourneyFactions.LOGGER.info("Requesting faction data from server");
             
             PacketByteBuf buf = PacketByteBufs.create();
             // Empty buffer - just a request signal
             
             ClientPlayNetworking.send(CLIENT_REQUEST_DATA, buf);
-            JourneyFactions.LOGGER.debug("Faction data request sent");
+            // JourneyFactions.LOGGER.debug("Faction data request sent");
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Failed to request faction data", e);
+            // JourneyFactions.LOGGER.error("Failed to request faction data", e);
         }
     }
 
@@ -231,13 +231,13 @@ public class ClientNetworkHandler {
             }
             faction.setClaimedChunks(chunks);
             
-            JourneyFactions.LOGGER.debug("Read faction from buffer: {} ({}) with {} chunks", 
-                factionName, type, chunkCount);
+            // JourneyFactions.LOGGER.debug("Read faction from buffer: {} ({}) with {} chunks", 
+            //    factionName, type, chunkCount);
             
             return faction;
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Error reading faction from buffer", e);
+            // JourneyFactions.LOGGER.error("Error reading faction from buffer", e);
             return null;
         }
     }

@@ -33,7 +33,7 @@ public class JourneyFactions implements ClientModInitializer {
 		}
 
 		LOGGER.info("JourneyFactions client mod initialized successfully");
-		LOGGER.info("Use FactionDebugCommands.printFactionStatus() to check current state");
+		// LOGGER.info("Use FactionDebugCommands.printFactionStatus() to check current state");
 	}
 
 	public static ClientFactionManager getFactionManager() {

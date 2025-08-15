@@ -34,12 +34,12 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     }
     
     public void onMappingStarted() {
-        JourneyFactions.LOGGER.debug("JourneyMap mapping started - loading faction overlays");
+        // JourneyFactions.LOGGER.debug("JourneyMap mapping started - loading faction overlays");
         loadAllFactionOverlays();
     }
     
     public void onMappingStopped() {
-        JourneyFactions.LOGGER.debug("JourneyMap mapping stopped - clearing overlays");
+        // JourneyFactions.LOGGER.debug("JourneyMap mapping stopped - clearing overlays");
         clearAllOverlays();
     }
     
@@ -58,16 +58,16 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                 for (PolygonOverlay overlay : factionOverlays.values()) {
                     jmAPI.show(overlay);
                 }
-                JourneyFactions.LOGGER.info("Showed {} faction overlays", factionOverlays.size());
+                // JourneyFactions.LOGGER.info("Showed {} faction overlays", factionOverlays.size());
             } else {
                 // Hide all overlays by removing them from JourneyMap
                 for (PolygonOverlay overlay : factionOverlays.values()) {
                     jmAPI.remove(overlay);
                 }
-                JourneyFactions.LOGGER.info("Hid {} faction overlays", factionOverlays.size());
+                // JourneyFactions.LOGGER.info("Hid {} faction overlays", factionOverlays.size());
             }
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Error updating overlay visibility", e);
+            // JourneyFactions.LOGGER.error("Error updating overlay visibility", e);
         }
     }
     
@@ -80,35 +80,35 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     
     private void loadAllFactionOverlays() {
         try {
-            JourneyFactions.LOGGER.info("Loading faction overlays...");
+            // JourneyFactions.LOGGER.info("Loading faction overlays...");
             Collection<ClientFaction> factions = JourneyFactions.getFactionManager().getAllFactions();
-            JourneyFactions.LOGGER.info("Found {} factions to process", factions.size());
+            // JourneyFactions.LOGGER.info("Found {} factions to process", factions.size());
             
             for (ClientFaction faction : factions) {
-                JourneyFactions.LOGGER.info("Processing faction: {} (type: {}, chunks: {})", 
-                    faction.getName(), faction.getType(), faction.getClaimedChunks().size());
+                // JourneyFactions.LOGGER.info("Processing faction: {} (type: {}, chunks: {})", 
+                //    faction.getName(), faction.getType(), faction.getClaimedChunks().size());
                 
                 // Only display factions that have claimed territory
                 if (!faction.getClaimedChunks().isEmpty()) {
                     createOrUpdateFactionOverlay(faction);
                 } else {
-                    JourneyFactions.LOGGER.info("Skipping faction {} - no claimed chunks", faction.getName());
+                    // JourneyFactions.LOGGER.info("Skipping faction {} - no claimed chunks", faction.getName());
                 }
             }
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Error loading faction overlays", e);
+            // JourneyFactions.LOGGER.error("Error loading faction overlays", e);
         }
     }
     
     private void createOrUpdateFactionOverlay(ClientFaction faction) {
         String factionId = faction.getId();
         
-        JourneyFactions.LOGGER.info("Creating overlay for faction: {} (type: {})", faction.getName(), faction.getType());
+        // JourneyFactions.LOGGER.info("Creating overlay for faction: {} (type: {})", faction.getName(), faction.getType());
         
         // Skip wilderness and other system factions unless configured to show all
         if (faction.getType() != ClientFaction.FactionType.PLAYER) {
-            JourneyFactions.LOGGER.info("Processing non-player faction: {} (showing all types)", faction.getName());
+            // JourneyFactions.LOGGER.info("Processing non-player faction: {} (showing all types)", faction.getName());
         }
         
         // Remove existing overlay if it exists
@@ -117,21 +117,21 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         // Get faction's claimed chunks
         Set<ChunkPos> claimedChunks = faction.getClaimedChunks();
         if (claimedChunks.isEmpty()) {
-            JourneyFactions.LOGGER.info("No claimed chunks for faction: {}", faction.getName());
+            // JourneyFactions.LOGGER.info("No claimed chunks for faction: {}", faction.getName());
             return;
         }
         
-        JourneyFactions.LOGGER.info("Faction {} has {} claimed chunks", faction.getName(), claimedChunks.size());
+        // JourneyFactions.LOGGER.info("Faction {} has {} claimed chunks", faction.getName(), claimedChunks.size());
         
         try {
             // Build polygons using JourneyMap's PolygonHelper for all disconnected regions
             List<MapPolygon> mapPolygons = buildPolygonsUsingJourneyMapHelper(claimedChunks);
             if (mapPolygons.isEmpty()) {
-                JourneyFactions.LOGGER.warn("Failed to build polygons for faction: {}", faction.getName());
+                // JourneyFactions.LOGGER.warn("Failed to build polygons for faction: {}", faction.getName());
                 return;
             }
             
-            JourneyFactions.LOGGER.info("Built {} polygons for faction: {}", mapPolygons.size(), faction.getName());
+            // JourneyFactions.LOGGER.info("Built {} polygons for faction: {}", mapPolygons.size(), faction.getName());
             
             // Get current world - we'll use overworld as default
             RegistryKey<World> worldKey = World.OVERWORLD;
@@ -175,20 +175,20 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                     }
                     factionOverlays.put(overlayId, overlay);
                     
-                    JourneyFactions.LOGGER.info("Successfully created overlay {} for faction: {}", 
-                        overlayId, faction.getName());
+                    // JourneyFactions.LOGGER.info("Successfully created overlay {} for faction: {}", 
+                    //    overlayId, faction.getName());
                         
                 } catch (Exception e) {
-                    JourneyFactions.LOGGER.error("Failed to add overlay {} to JourneyMap for faction: {} - {}", 
-                        overlayId, faction.getName(), e.getMessage());
+                    // JourneyFactions.LOGGER.error("Failed to add overlay {} to JourneyMap for faction: {} - {}", 
+                    //    overlayId, faction.getName(), e.getMessage());
                 }
             }
             
-            JourneyFactions.LOGGER.info("Created {} overlays for faction: {} with {} total chunks", 
-                mapPolygons.size(), faction.getName(), claimedChunks.size());
+            // JourneyFactions.LOGGER.info("Created {} overlays for faction: {} with {} total chunks", 
+            //    mapPolygons.size(), faction.getName(), claimedChunks.size());
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Failed to create overlay for faction: " + factionId, e);
+            // JourneyFactions.LOGGER.error("Failed to create overlay for faction: " + factionId, e);
         }
     }
     
@@ -197,20 +197,20 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
      */
     private List<MapPolygon> buildPolygonsUsingJourneyMapHelper(Set<ChunkPos> chunks) {
         try {
-            JourneyFactions.LOGGER.info("Building polygons using JourneyMap PolygonHelper for {} chunks", chunks.size());
+            // JourneyFactions.LOGGER.info("Building polygons using JourneyMap PolygonHelper for {} chunks", chunks.size());
             
             List<MapPolygon> polygons = new ArrayList<>();
             
             // Find all disconnected regions
             List<Set<ChunkPos>> regions = findConnectedRegions(chunks);
-            JourneyFactions.LOGGER.info("Found {} disconnected regions", regions.size());
+            // JourneyFactions.LOGGER.info("Found {} disconnected regions", regions.size());
             
             // Sort regions by size (largest first) so the main region gets the label
             regions.sort((a, b) -> Integer.compare(b.size(), a.size()));
             
             for (int i = 0; i < regions.size(); i++) {
                 Set<ChunkPos> region = regions.get(i);
-                JourneyFactions.LOGGER.info("Processing region {} with {} chunks", i + 1, region.size());
+                // JourneyFactions.LOGGER.info("Processing region {} with {} chunks", i + 1, region.size());
                 
                 try {
                     // Use JourneyMap's PolygonHelper.createChunksPolygon()
@@ -223,40 +223,40 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                             // Access the public hull field directly
                             MapPolygon hull = polyWithHoles.hull;
                             polygons.add(hull);
-                            JourneyFactions.LOGGER.info("Successfully created polygon using PolygonHelper for region {}", i + 1);
+                            // JourneyFactions.LOGGER.info("Successfully created polygon using PolygonHelper for region {}", i + 1);
                         }
                     } else {
-                        JourneyFactions.LOGGER.warn("PolygonHelper returned empty result for region {}, using fallback", i + 1);
+                        // JourneyFactions.LOGGER.warn("PolygonHelper returned empty result for region {}, using fallback", i + 1);
                         
                         // Fallback: create simple polygon manually
                         MapPolygon fallbackPolygon = createFallbackPolygon(region);
                         if (fallbackPolygon != null) {
                             polygons.add(fallbackPolygon);
-                            JourneyFactions.LOGGER.info("Created fallback polygon for region {}", i + 1);
+                            // JourneyFactions.LOGGER.info("Created fallback polygon for region {}", i + 1);
                         }
                     }
                     
                 } catch (Exception e) {
-                    JourneyFactions.LOGGER.error("Error creating polygon for region {} with PolygonHelper: {}", i + 1, e.getMessage());
+                    // JourneyFactions.LOGGER.error("Error creating polygon for region {} with PolygonHelper: {}", i + 1, e.getMessage());
                     
                     // Fallback: create simple polygon manually
                     try {
                         MapPolygon fallbackPolygon = createFallbackPolygon(region);
                         if (fallbackPolygon != null) {
                             polygons.add(fallbackPolygon);
-                            JourneyFactions.LOGGER.info("Created fallback polygon for region {}", i + 1);
+                            // JourneyFactions.LOGGER.info("Created fallback polygon for region {}", i + 1);
                         }
                     } catch (Exception fallbackError) {
-                        JourneyFactions.LOGGER.error("Fallback polygon creation also failed for region {}: {}", i + 1, fallbackError.getMessage());
+                        // JourneyFactions.LOGGER.error("Fallback polygon creation also failed for region {}: {}", i + 1, fallbackError.getMessage());
                     }
                 }
             }
             
-            JourneyFactions.LOGGER.info("Successfully created {} polygons using PolygonHelper", polygons.size());
+            // JourneyFactions.LOGGER.info("Successfully created {} polygons using PolygonHelper", polygons.size());
             return polygons;
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Error building polygons with PolygonHelper", e);
+            // JourneyFactions.LOGGER.error("Error building polygons with PolygonHelper", e);
             return new ArrayList<>();
         }
     }
@@ -366,8 +366,8 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         points.add(new BlockPos(worldMinX, 70, worldMaxZ));     // Bottom-left
         points.add(new BlockPos(worldMinX, 70, worldMinZ));     // Close polygon
         
-        JourneyFactions.LOGGER.info("Created bounding rectangle: ({},{}) to ({},{}) covering {}x{} chunks", 
-            worldMinX, worldMinZ, worldMaxX, worldMaxZ, maxX - minX + 1, maxZ - minZ + 1);
+        // JourneyFactions.LOGGER.info("Created bounding rectangle: ({},{}) to ({},{}) covering {}x{} chunks", 
+        //    worldMinX, worldMinZ, worldMaxX, worldMaxZ, maxX - minX + 1, maxZ - minZ + 1);
         
         return points;
     }
@@ -387,15 +387,15 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
             if (overlay != null) {
                 try {
                     jmAPI.remove(overlay);
-                    JourneyFactions.LOGGER.debug("Removed overlay: {}", overlayId);
+                    // JourneyFactions.LOGGER.debug("Removed overlay: {}", overlayId);
                 } catch (Exception e) {
-                    JourneyFactions.LOGGER.warn("Failed to remove overlay: {}", overlayId, e);
+                    // JourneyFactions.LOGGER.warn("Failed to remove overlay: {}", overlayId, e);
                 }
             }
         }
         
         if (!overlaysToRemove.isEmpty()) {
-            JourneyFactions.LOGGER.info("Removed {} overlays for faction: {}", overlaysToRemove.size(), factionId);
+            // JourneyFactions.LOGGER.info("Removed {} overlays for faction: {}", overlaysToRemove.size(), factionId);
         }
     }
     
@@ -422,7 +422,7 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
             textColor = new Color(factionColor.getRGB());
             // Lighter background
             backgroundColor = new Color(170, 170, 170, 128);
-            JourneyFactions.LOGGER.info("Faction color is BLACK");
+            // JourneyFactions.LOGGER.info("Faction color is BLACK");
         } else {
             // Faction color is dark_gray → use lighter text
             if (factionColor.getRed() == 85 && factionColor.getGreen() == 85 && factionColor.getBlue() == 85) {
@@ -430,13 +430,13 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                 textColor = new Color(170, 170, 170, 128);
                 // Default background
                 backgroundColor = new Color(200, 200, 200, 128);
-                JourneyFactions.LOGGER.info("Faction color is DARK_GRAY");
+                // JourneyFactions.LOGGER.info("Faction color is DARK_GRAY");
             } else {
                 // Default text
                 textColor = new Color(factionColor.getRGB());
                 // Default background
                 backgroundColor = new Color(0, 0, 0, 128);
-                JourneyFactions.LOGGER.info("Faction color is ELSE");
+                // JourneyFactions.LOGGER.info("Faction color is ELSE");
             }
         }
 
@@ -454,7 +454,7 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
             try {
                 jmAPI.remove(entry.getValue());
             } catch (Exception e) {
-                JourneyFactions.LOGGER.warn("Failed to remove faction overlay: " + entry.getKey(), e);
+                // JourneyFactions.LOGGER.warn("Failed to remove faction overlay: " + entry.getKey(), e);
             }
         }
         factionOverlays.clear();

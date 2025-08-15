@@ -128,8 +128,8 @@ public class FactionControlsScreen extends Screen {
             this.client.player.sendMessage(Text.literal(message), true);
         }
         
-        JourneyFactions.LOGGER.info("Faction display toggled via GUI to: {}", 
-            FactionDisplayManager.isFactionDisplayEnabled() ? "ENABLED" : "DISABLED");
+        // JourneyFactions.LOGGER.info("Faction display toggled via GUI to: {}", 
+        //    FactionDisplayManager.isFactionDisplayEnabled() ? "ENABLED" : "DISABLED");
     }
     
     private void updateFactionStats() {
@@ -145,14 +145,14 @@ public class FactionControlsScreen extends Screen {
                 totalChunks += faction.getClaimedChunks().size();
             }
         } catch (Exception e) {
-            JourneyFactions.LOGGER.warn("Error updating faction stats: {}", e.getMessage());
+            // JourneyFactions.LOGGER.warn("Error updating faction stats: {}", e.getMessage());
         }
     }
     
     @Override
     public void close() {
         super.close();
-        JourneyFactions.LOGGER.debug("Faction controls screen closed");
+        // JourneyFactions.LOGGER.debug("Faction controls screen closed");
     }
     
     @Override

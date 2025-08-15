@@ -17,7 +17,7 @@ public class JourneyMapContextIntegration {
      * Initialize the context integration
      */
     public static void initialize(IClientAPI jmAPI) {
-        JourneyFactions.LOGGER.info("JourneyMap context integration initialized");
+        // JourneyFactions.LOGGER.info("JourneyMap context integration initialized");
     }
     
     /**
@@ -45,10 +45,10 @@ public class JourneyMapContextIntegration {
             // Add open controls screen action
             factionSubmenu.addMenuItemScreen("Faction Settings", new FactionControlsScreen());
             
-            JourneyFactions.LOGGER.debug("Added faction controls to JourneyMap context menu");
+            // JourneyFactions.LOGGER.debug("Added faction controls to JourneyMap context menu");
             
         } catch (Exception e) {
-            JourneyFactions.LOGGER.warn("Error adding faction menu items: {}", e.getMessage());
+            // JourneyFactions.LOGGER.warn("Error adding faction menu items: {}", e.getMessage());
         }
     }
     
@@ -61,19 +61,19 @@ public class JourneyMapContextIntegration {
         return new ModPopupMenu() {
             @Override
             public ModPopupMenu addMenuItem(String label, Action action) {
-                JourneyFactions.LOGGER.debug("Would add menu item: {}", label);
+                // JourneyFactions.LOGGER.debug("Would add menu item: {}", label);
                 return this;
             }
             
             @Override
             public ModPopupMenu addMenuItemScreen(String label, net.minecraft.client.gui.screen.Screen screen) {
-                JourneyFactions.LOGGER.debug("Would add screen menu item: {}", label);
+                // JourneyFactions.LOGGER.debug("Would add screen menu item: {}", label);
                 return this;
             }
             
             @Override
             public ModPopupMenu createSubItemList(String label) {
-                JourneyFactions.LOGGER.debug("Would create submenu: {}", label);
+                // JourneyFactions.LOGGER.debug("Would create submenu: {}", label);
                 return this;
             }
         };
@@ -87,10 +87,10 @@ public class JourneyMapContextIntegration {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client != null) {
                 client.setScreen(new FactionControlsScreen());
-                JourneyFactions.LOGGER.info("Opened faction controls screen");
+                // JourneyFactions.LOGGER.info("Opened faction controls screen");
             }
         } catch (Exception e) {
-            JourneyFactions.LOGGER.error("Error opening faction controls screen: {}", e.getMessage());
+            // JourneyFactions.LOGGER.error("Error opening faction controls screen: {}", e.getMessage());
         }
     }
     
@@ -120,16 +120,16 @@ public class JourneyMapContextIntegration {
                 );
             }
         } catch (Exception e) {
-            JourneyFactions.LOGGER.debug("Could not send toggle feedback: {}", e.getMessage());
+            // JourneyFactions.LOGGER.debug("Could not send toggle feedback: {}", e.getMessage());
         }
         
-        JourneyFactions.LOGGER.info("Faction display toggled via context menu");
+        // JourneyFactions.LOGGER.info("Faction display toggled via context menu");
     }
     
     /**
      * Cleanup method
      */
     public static void cleanup() {
-        JourneyFactions.LOGGER.info("JourneyMap context integration cleanup completed");
+        // JourneyFactions.LOGGER.info("JourneyMap context integration cleanup completed");
     }
 }

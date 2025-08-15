@@ -60,13 +60,13 @@ public class ClientFactionManager {
             // Update chunk mapping
             updateChunkMapping(existing);
             
-            JourneyFactions.LOGGER.debug("Updated faction: {}", factionId);
+            // JourneyFactions.LOGGER.debug("Updated faction: {}", factionId);
         } else {
             // Add new faction
             factions.put(factionId, faction);
             updateChunkMapping(faction);
             
-            JourneyFactions.LOGGER.info("Added new faction: {} ({})", faction.getName(), factionId);
+            // JourneyFactions.LOGGER.info("Added new faction: {} ({})", faction.getName(), factionId);
         }
 
         // Notify listeners
@@ -79,7 +79,7 @@ public class ClientFactionManager {
             // Remove chunk mappings
             faction.getClaimedChunks().forEach(chunkToFaction::remove);
             
-            JourneyFactions.LOGGER.info("Removed faction: {}", factionId);
+            // JourneyFactions.LOGGER.info("Removed faction: {}", factionId);
             notifyFactionRemoved(faction);
         }
     }
@@ -148,7 +148,7 @@ public class ClientFactionManager {
         chunkToFaction.clear();
         initializeDefaultFactions();
         
-        JourneyFactions.LOGGER.info("Cleared all faction data");
+        // JourneyFactions.LOGGER.info("Cleared all faction data");
         notifyDataCleared();
     }
 
@@ -191,7 +191,7 @@ public class ClientFactionManager {
             try {
                 listener.onFactionUpdated(faction);
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error notifying faction update listener", e);
+                // JourneyFactions.LOGGER.error("Error notifying faction update listener", e);
             }
         });
     }
@@ -201,7 +201,7 @@ public class ClientFactionManager {
             try {
                 listener.onFactionRemoved(faction);
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error notifying faction removal listener", e);
+                // JourneyFactions.LOGGER.error("Error notifying faction removal listener", e);
             }
         });
     }
@@ -211,7 +211,7 @@ public class ClientFactionManager {
             try {
                 listener.onChunkChanged(chunk, oldFactionId, newFactionId);
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error notifying chunk change listener", e);
+                // JourneyFactions.LOGGER.error("Error notifying chunk change listener", e);
             }
         });
     }
@@ -221,7 +221,7 @@ public class ClientFactionManager {
             try {
                 listener.onDataCleared();
             } catch (Exception e) {
-                JourneyFactions.LOGGER.error("Error notifying data clear listener", e);
+                // JourneyFactions.LOGGER.error("Error notifying data clear listener", e);
             }
         });
     }
