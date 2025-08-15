@@ -103,163 +103,103 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     
     private void createOrUpdateFactionOverlay(ClientFaction faction) {
         String factionId = faction.getId();
-        
-        // JourneyFactions.LOGGER.info("Creating overlay for faction: {} (type: {})", faction.getName(), faction.getType());
-        
-        // Skip wilderness and other system factions unless configured to show all
-        if (faction.getType() != ClientFaction.FactionType.PLAYER) {
-            // JourneyFactions.LOGGER.info("Processing non-player faction: {} (showing all types)", faction.getName());
-        }
-        
-        // Remove existing overlay if it exists
+
+        // Remove any old overlays for this faction
         removeOverlay(factionId);
-        
-        // Get faction's claimed chunks
+
         Set<ChunkPos> claimedChunks = faction.getClaimedChunks();
         if (claimedChunks.isEmpty()) {
-            // JourneyFactions.LOGGER.info("No claimed chunks for faction: {}", faction.getName());
             return;
         }
-        
-        // JourneyFactions.LOGGER.info("Faction {} has {} claimed chunks", faction.getName(), claimedChunks.size());
-        
+
         try {
-            // Build polygons using JourneyMap's PolygonHelper for all disconnected regions
-            List<MapPolygon> mapPolygons = buildPolygonsUsingJourneyMapHelper(claimedChunks);
-            if (mapPolygons.isEmpty()) {
-                // JourneyFactions.LOGGER.warn("Failed to build polygons for faction: {}", faction.getName());
+            // Build polygons with holes preserved
+            List<MapPolygonWithHoles> polygons = buildPolygonsUsingJourneyMapHelper(claimedChunks);
+            if (polygons.isEmpty()) {
                 return;
             }
-            
-            // JourneyFactions.LOGGER.info("Built {} polygons for faction: {}", mapPolygons.size(), faction.getName());
-            
-            // Get current world - we'll use overworld as default
+
             RegistryKey<World> worldKey = World.OVERWORLD;
-            
-            // Create overlays for each disconnected region
-            for (int i = 0; i < mapPolygons.size(); i++) {
-                String overlayId = mapPolygons.size() > 1 ? factionId + "_region_" + i : factionId;
-                
-                // Create the overlay
+
+            for (int i = 0; i < polygons.size(); i++) {
+                String overlayId = polygons.size() > 1 ? factionId + "_region_" + i : factionId;
+
                 PolygonOverlay overlay = new PolygonOverlay(
-                    JourneyFactions.MOD_ID, 
+                    JourneyFactions.MOD_ID,
                     overlayId,
                     worldKey,
                     createShapeProperties(faction),
-                    mapPolygons.get(i)
+                    polygons.get(i) // ✅ Pass with holes
                 );
-                
-                // Set display properties
+
                 overlay.setActiveUIs(EnumSet.of(Context.UI.Any));
                 overlay.setActiveMapTypes(EnumSet.of(Context.MapType.Any));
-                
-                // Set text properties
                 overlay.setTextProperties(createTextProperties(faction));
-                
-                // For multiple regions, add region number to distinguish them
-                if (mapPolygons.size() > 1) {
-                    overlay.setLabel(faction.getDisplayName() + " #" + (i + 1));
-                } else {
-                    overlay.setLabel(faction.getDisplayName());
-                }
-                
-                // Set additional properties
+
+                // Label numbering for multi-region factions
+                overlay.setLabel(polygons.size() > 1
+                    ? faction.getDisplayName() + " #" + (i + 1)
+                    : faction.getDisplayName());
+
                 overlay.setOverlayGroupName("faction_territories");
                 overlay.setTitle(faction.getDisplayName() + " Territory");
-                
-                // Add to JourneyMap (visibility is controlled by showing/removing overlays)
-                try {
-                    // Only show if faction display is enabled
-                    if (FactionDisplayManager.isFactionDisplayEnabled()) {
-                        jmAPI.show(overlay);
-                    }
-                    factionOverlays.put(overlayId, overlay);
-                    
-                    // JourneyFactions.LOGGER.info("Successfully created overlay {} for faction: {}", 
-                    //    overlayId, faction.getName());
-                        
-                } catch (Exception e) {
-                    // JourneyFactions.LOGGER.error("Failed to add overlay {} to JourneyMap for faction: {} - {}", 
-                    //    overlayId, faction.getName(), e.getMessage());
+
+                if (FactionDisplayManager.isFactionDisplayEnabled()) {
+                    jmAPI.show(overlay);
                 }
+
+                factionOverlays.put(overlayId, overlay);
             }
-            
-            // JourneyFactions.LOGGER.info("Created {} overlays for faction: {} with {} total chunks", 
-            //    mapPolygons.size(), faction.getName(), claimedChunks.size());
-            
+
         } catch (Exception e) {
-            // JourneyFactions.LOGGER.error("Failed to create overlay for faction: " + factionId, e);
+            // Log or handle error
         }
     }
+
     
     /**
-     * Build polygons using JourneyMap's official PolygonHelper for proper rendering
+     * Build polygons using JourneyMap's official PolygonHelper for proper rendering,
+     * preserving holes when present.
      */
-    private List<MapPolygon> buildPolygonsUsingJourneyMapHelper(Set<ChunkPos> chunks) {
+    private List<MapPolygonWithHoles> buildPolygonsUsingJourneyMapHelper(Set<ChunkPos> chunks) {
+        List<MapPolygonWithHoles> polygons = new ArrayList<>();
+
         try {
-            // JourneyFactions.LOGGER.info("Building polygons using JourneyMap PolygonHelper for {} chunks", chunks.size());
-            
-            List<MapPolygon> polygons = new ArrayList<>();
-            
-            // Find all disconnected regions
+            // Split into connected regions first
             List<Set<ChunkPos>> regions = findConnectedRegions(chunks);
-            // JourneyFactions.LOGGER.info("Found {} disconnected regions", regions.size());
-            
-            // Sort regions by size (largest first) so the main region gets the label
-            regions.sort((a, b) -> Integer.compare(b.size(), a.size()));
-            
-            for (int i = 0; i < regions.size(); i++) {
-                Set<ChunkPos> region = regions.get(i);
-                // JourneyFactions.LOGGER.info("Processing region {} with {} chunks", i + 1, region.size());
-                
+            regions.sort((a, b) -> Integer.compare(b.size(), a.size())); // largest first
+
+            for (Set<ChunkPos> region : regions) {
                 try {
-                    // Use JourneyMap's PolygonHelper.createChunksPolygon()
-                    // This creates optimal polygons with holes support
-                    List<MapPolygonWithHoles> polygonsWithHoles = PolygonHelper.createChunksPolygon(region, 70);
-                    
-                    if (polygonsWithHoles != null && !polygonsWithHoles.isEmpty()) {
-                        // Extract the hull (outer boundary) from each MapPolygonWithHoles
-                        for (MapPolygonWithHoles polyWithHoles : polygonsWithHoles) {
-                            // Access the public hull field directly
-                            MapPolygon hull = polyWithHoles.hull;
-                            polygons.add(hull);
-                            // JourneyFactions.LOGGER.info("Successfully created polygon using PolygonHelper for region {}", i + 1);
-                        }
+                    // Let JourneyMap do the heavy lifting
+                    List<MapPolygonWithHoles> polysWithHoles = PolygonHelper.createChunksPolygon(region, 70);
+
+                    if (polysWithHoles != null && !polysWithHoles.isEmpty()) {
+                        polygons.addAll(polysWithHoles); // ✅ Keep holes
                     } else {
-                        // JourneyFactions.LOGGER.warn("PolygonHelper returned empty result for region {}, using fallback", i + 1);
-                        
-                        // Fallback: create simple polygon manually
-                        MapPolygon fallbackPolygon = createFallbackPolygon(region);
-                        if (fallbackPolygon != null) {
-                            polygons.add(fallbackPolygon);
-                            // JourneyFactions.LOGGER.info("Created fallback polygon for region {}", i + 1);
+                        // Fallback: create simple bounding or chunk polygon
+                        MapPolygon fallback = createFallbackPolygon(region);
+                        if (fallback != null) {
+                            polygons.add(new MapPolygonWithHoles(fallback, Collections.emptyList()));
                         }
                     }
-                    
                 } catch (Exception e) {
-                    // JourneyFactions.LOGGER.error("Error creating polygon for region {} with PolygonHelper: {}", i + 1, e.getMessage());
-                    
-                    // Fallback: create simple polygon manually
-                    try {
-                        MapPolygon fallbackPolygon = createFallbackPolygon(region);
-                        if (fallbackPolygon != null) {
-                            polygons.add(fallbackPolygon);
-                            // JourneyFactions.LOGGER.info("Created fallback polygon for region {}", i + 1);
-                        }
-                    } catch (Exception fallbackError) {
-                        // JourneyFactions.LOGGER.error("Fallback polygon creation also failed for region {}: {}", i + 1, fallbackError.getMessage());
+                    // If helper fails, still make something visible
+                    MapPolygon fallback = createFallbackPolygon(region);
+                    if (fallback != null) {
+                        polygons.add(new MapPolygonWithHoles(fallback, Collections.emptyList()));
                     }
                 }
             }
-            
-            // JourneyFactions.LOGGER.info("Successfully created {} polygons using PolygonHelper", polygons.size());
-            return polygons;
-            
         } catch (Exception e) {
-            // JourneyFactions.LOGGER.error("Error building polygons with PolygonHelper", e);
-            return new ArrayList<>();
+            // No polygons at all if something fatal happens
+            return Collections.emptyList();
         }
+
+        return polygons;
     }
+
+
     
     /**
      * Create a fallback polygon when PolygonHelper fails
