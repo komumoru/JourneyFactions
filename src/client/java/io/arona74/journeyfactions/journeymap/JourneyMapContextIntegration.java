@@ -17,7 +17,7 @@ public class JourneyMapContextIntegration {
      * Initialize the context integration
      */
     public static void initialize(IClientAPI jmAPI) {
-        // JourneyFactions.LOGGER.info("JourneyMap context integration initialized");
+        JourneyFactions.LOGGER.info("JourneyMap context integration initialized");
     }
     
     /**
@@ -130,6 +130,6 @@ public class JourneyMapContextIntegration {
      * Cleanup method
      */
     public static void cleanup() {
-        // JourneyFactions.LOGGER.info("JourneyMap context integration cleanup completed");
+        JourneyFactions.LOGGER.info("JourneyMap context integration cleanup completed");
     }
 }

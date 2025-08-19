@@ -186,8 +186,6 @@ public class FactionToggleButton {
         // JourneyFactions.LOGGER.info("  FactionToggleButton.manualToggle() - Manual toggle");
         // JourneyFactions.LOGGER.info("  FactionToggleButton.forceTrigger() - Force trigger");
         // JourneyFactions.LOGGER.info("  FactionToggleButton.testKeybinding() - Test keybinding setup");
-        // JourneyFactions.LOGGER.info("  FactionDebugCommands.toggleDisplay() - Alternative toggle");
-        // JourneyFactions.LOGGER.info("  FactionDebugCommands.openControlsGUI() - GUI controls");
         // JourneyFactions.LOGGER.info("==============================");
     }
     

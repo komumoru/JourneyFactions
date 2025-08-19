@@ -1,6 +1,7 @@
 package io.arona74.journeyfactions.journeymap;
 
 import io.arona74.journeyfactions.JourneyFactions;
+import io.arona74.journeyfactions.config.JourneyFactionsConfig;
 import io.arona74.journeyfactions.data.ClientFaction;
 import io.arona74.journeyfactions.data.ClientFactionManager;
 import journeymap.client.api.IClientAPI;
@@ -24,6 +25,107 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     
     private final IClientAPI jmAPI;
     private final Map<String, PolygonOverlay> factionOverlays;
+    private static final int LABEL_Y = 70;
+
+    private PolygonOverlay createLabelOnlyOverlay(
+            String overlayId,
+            RegistryKey<World> worldKey,
+            BlockPos anchor,
+            TextProperties textProps,
+            String label
+    ) {
+        // 2x2 block square around the anchor
+        int r = 1;
+        List<BlockPos> pts = Arrays.asList(
+            new BlockPos(anchor.getX() - r, LABEL_Y, anchor.getZ() - r),
+            new BlockPos(anchor.getX() + r, LABEL_Y, anchor.getZ() - r),
+            new BlockPos(anchor.getX() + r, LABEL_Y, anchor.getZ() + r),
+            new BlockPos(anchor.getX() - r, LABEL_Y, anchor.getZ() + r),
+            new BlockPos(anchor.getX() - r, LABEL_Y, anchor.getZ() - r) // close
+        );
+
+        MapPolygon tiny = new MapPolygon(pts);
+
+        ShapeProperties invisible = new ShapeProperties()
+            .setStrokeWidth(0f)
+            .setStrokeOpacity(0f)
+            .setFillOpacity(0f)
+            .setStrokeColor(0)
+            .setFillColor(0);
+
+        PolygonOverlay labelOverlay = new PolygonOverlay(
+            JourneyFactions.MOD_ID,
+            overlayId,
+            worldKey,
+            invisible,
+            tiny
+        );
+
+        labelOverlay.setActiveUIs(EnumSet.of(Context.UI.Any));
+        labelOverlay.setActiveMapTypes(EnumSet.of(Context.MapType.Any));
+        labelOverlay.setOverlayGroupName("faction_labels");
+        labelOverlay.setTitle(label);
+        labelOverlay.setTextProperties(textProps);
+        labelOverlay.setLabel(label);
+        return labelOverlay;
+    }
+
+    private BlockPos computeInteriorLabelAnchor(Set<ChunkPos> region) {
+        if (region.isEmpty()) return null;
+
+        // Edge detection: any missing 4-neighbor => edge
+        Deque<ChunkPos> q = new ArrayDeque<>();
+        Map<ChunkPos, Integer> dist = new HashMap<>(region.size() * 2);
+        for (ChunkPos c : region) {
+            if (isEdgeChunk(c, region)) {
+                dist.put(c, 0);
+                q.add(c);
+            }
+        }
+        // Single chunk or fully solid region with no detected edge: just use it
+        if (dist.isEmpty()) {
+            ChunkPos any = region.iterator().next();
+            return new BlockPos(any.x * 16 + 8, LABEL_Y, any.z * 16 + 8);
+        }
+
+        // BFS into the interior
+        while (!q.isEmpty()) {
+            ChunkPos cur = q.removeFirst();
+            int d = dist.get(cur);
+            for (ChunkPos n : neighbors(cur)) {
+                if (region.contains(n) && !dist.containsKey(n)) {
+                    dist.put(n, d + 1);
+                    q.addLast(n);
+                }
+            }
+        }
+
+        // Choose the chunk with max distance from the perimeter (keeps out of holes)
+        ChunkPos best = null;
+        int bestD = -1;
+        for (Map.Entry<ChunkPos, Integer> e : dist.entrySet()) {
+            if (e.getValue() > bestD) { bestD = e.getValue(); best = e.getKey(); }
+        }
+        if (best == null) best = region.iterator().next();
+
+        return new BlockPos(best.x * 16 + 8, LABEL_Y, best.z * 16 + 8);
+    }
+
+    private boolean isEdgeChunk(ChunkPos c, Set<ChunkPos> set) {
+        return !(set.contains(new ChunkPos(c.x + 1, c.z)) &&
+                set.contains(new ChunkPos(c.x - 1, c.z)) &&
+                set.contains(new ChunkPos(c.x, c.z + 1)) &&
+                set.contains(new ChunkPos(c.x, c.z - 1)));
+    }
+
+    private ChunkPos[] neighbors(ChunkPos c) {
+        return new ChunkPos[] {
+            new ChunkPos(c.x + 1, c.z),
+            new ChunkPos(c.x - 1, c.z),
+            new ChunkPos(c.x, c.z + 1),
+            new ChunkPos(c.x, c.z - 1)
+        };
+    }
     
     public FactionOverlayManager(IClientAPI jmAPI) {
         this.jmAPI = jmAPI;
@@ -90,7 +192,7 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                 
                 // Only display factions that have claimed territory
                 if (!faction.getClaimedChunks().isEmpty()) {
-                    createOrUpdateFactionOverlay(faction);
+                    createOrUpdateFactionOverlay(faction, faction.getClaimedChunks());
                 } else {
                     // JourneyFactions.LOGGER.info("Skipping faction {} - no claimed chunks", faction.getName());
                 }
@@ -101,16 +203,49 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         }
     }
     
-    private void createOrUpdateFactionOverlay(ClientFaction faction) {
-        String factionId = faction.getId();
+    private BlockPos computeHullCentroid(Set<ChunkPos> region) {
+        if (region.isEmpty()) {
+            return new BlockPos(0, LABEL_Y, 0);
+        }
 
-        // Remove any old overlays for this faction
-        removeOverlay(factionId);
+        int minChunkX = Integer.MAX_VALUE;
+        int maxChunkX = Integer.MIN_VALUE;
+        int minChunkZ = Integer.MAX_VALUE;
+        int maxChunkZ = Integer.MIN_VALUE;
 
-        Set<ChunkPos> claimedChunks = faction.getClaimedChunks();
-        if (claimedChunks.isEmpty()) {
+        for (ChunkPos c : region) {
+            if (c.x < minChunkX) minChunkX = c.x;
+            if (c.x > maxChunkX) maxChunkX = c.x;
+            if (c.z < minChunkZ) minChunkZ = c.z;
+            if (c.z > maxChunkZ) maxChunkZ = c.z;
+        }
+
+        // Convert chunks to block coords for edges
+        int minBlockX = minChunkX * 16;
+        int maxBlockX = (maxChunkX * 16) + 15; // last block in chunk
+        int minBlockZ = minChunkZ * 16;
+        int maxBlockZ = (maxChunkZ * 16) + 15;
+
+        // Perfect geometric center
+        int centerX = (minBlockX + maxBlockX) / 2;
+        int centerZ = (minBlockZ + maxBlockZ) / 2;
+
+        return new BlockPos(centerX, LABEL_Y, centerZ);
+    }
+
+
+
+    private void createOrUpdateFactionOverlay(ClientFaction faction, Set<ChunkPos> claimedChunks) {
+        if (faction == null || claimedChunks.isEmpty()) {
             return;
         }
+
+        String factionId = faction.getId();
+        RegistryKey<World> worldKey = World.OVERWORLD;
+
+        // Sort connected regions by size so overlays match
+        List<Set<ChunkPos>> regions = findConnectedRegions(claimedChunks);
+        regions.sort((a, b) -> Integer.compare(b.size(), a.size()));
 
         try {
             // Build polygons with holes preserved
@@ -119,27 +254,29 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                 return;
             }
 
-            RegistryKey<World> worldKey = World.OVERWORLD;
-
             for (int i = 0; i < polygons.size(); i++) {
                 String overlayId = polygons.size() > 1 ? factionId + "_region_" + i : factionId;
 
+                // --- 1) Main polygon overlay ---
                 PolygonOverlay overlay = new PolygonOverlay(
                     JourneyFactions.MOD_ID,
                     overlayId,
                     worldKey,
                     createShapeProperties(faction),
-                    polygons.get(i) // ✅ Pass with holes
+                    polygons.get(i)
                 );
 
                 overlay.setActiveUIs(EnumSet.of(Context.UI.Any));
                 overlay.setActiveMapTypes(EnumSet.of(Context.MapType.Any));
                 overlay.setTextProperties(createTextProperties(faction));
 
-                // Label numbering for multi-region factions
-                overlay.setLabel(polygons.size() > 1
-                    ? faction.getDisplayName() + " #" + (i + 1)
-                    : faction.getDisplayName());
+                if (JourneyFactionsConfig.separateLabelOverlay) {
+                    overlay.setLabel(null); // no built-in label
+                } else {
+                    overlay.setLabel(polygons.size() > 1
+                        ? faction.getDisplayName() + " #" + (i + 1)
+                        : faction.getDisplayName());
+                }
 
                 overlay.setOverlayGroupName("faction_territories");
                 overlay.setTitle(faction.getDisplayName() + " Territory");
@@ -147,15 +284,48 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                 if (FactionDisplayManager.isFactionDisplayEnabled()) {
                     jmAPI.show(overlay);
                 }
-
                 factionOverlays.put(overlayId, overlay);
+
+                // --- 2) Optional: separate label-only overlay ---
+                if (JourneyFactionsConfig.separateLabelOverlay) {
+                    Set<ChunkPos> region = (i < regions.size()) ? regions.get(i) : claimedChunks;
+
+                    BlockPos anchor;
+                    switch (JourneyFactionsConfig.labelAnchorMode) {
+                        case HULL_CENTROID:
+                            anchor = computeHullCentroid(region);
+                            break;
+                        case FIRST_CHUNK_CENTER:
+                            ChunkPos first = region.iterator().next();
+                            anchor = new BlockPos(first.x * 16 + 8, LABEL_Y, first.z * 16 + 8);
+                            break;
+                        case FARTHEST_INTERIOR_CHUNK:
+                        default:
+                            anchor = computeInteriorLabelAnchor(region);
+                    }
+
+                    String labelId = overlayId + "_label";
+                    PolygonOverlay labelOverlay = createLabelOnlyOverlay(
+                        labelId,
+                        worldKey,
+                        anchor,
+                        createTextProperties(faction),
+                        polygons.size() > 1
+                            ? faction.getDisplayName() + " #" + (i + 1)
+                            : faction.getDisplayName()
+                    );
+
+                    if (FactionDisplayManager.isFactionDisplayEnabled()) {
+                        jmAPI.show(labelOverlay);
+                    }
+                    factionOverlays.put(labelId, labelOverlay);
+                }
             }
 
         } catch (Exception e) {
             // Log or handle error
         }
     }
-
     
     /**
      * Build polygons using JourneyMap's official PolygonHelper for proper rendering,
@@ -199,8 +369,6 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         return polygons;
     }
 
-
-    
     /**
      * Create a fallback polygon when PolygonHelper fails
      */
@@ -317,7 +485,10 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         Set<String> overlaysToRemove = new HashSet<>();
         
         for (String overlayId : factionOverlays.keySet()) {
-            if (overlayId.equals(factionId) || overlayId.startsWith(factionId + "_region_")) {
+            if (overlayId.equals(factionId) ||
+                overlayId.startsWith(factionId + "_region_") ||
+                overlayId.startsWith(factionId + "_label") ||
+                overlayId.contains("_region_") && overlayId.endsWith("_label")) {
                 overlaysToRemove.add(overlayId);
             }
         }
@@ -403,7 +574,7 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     // FactionUpdateListener implementation
     @Override
     public void onFactionUpdated(ClientFaction faction) {
-        createOrUpdateFactionOverlay(faction);
+        createOrUpdateFactionOverlay(faction, faction.getClaimedChunks());
     }
     
     @Override
@@ -417,14 +588,14 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         if (oldFactionId != null) {
             ClientFaction oldFaction = JourneyFactions.getFactionManager().getFaction(oldFactionId);
             if (oldFaction != null) {
-                createOrUpdateFactionOverlay(oldFaction);
+                createOrUpdateFactionOverlay(oldFaction, oldFaction.getClaimedChunks());
             }
         }
         
         if (newFactionId != null) {
             ClientFaction newFaction = JourneyFactions.getFactionManager().getFaction(newFactionId);
             if (newFaction != null) {
-                createOrUpdateFactionOverlay(newFaction);
+                createOrUpdateFactionOverlay(newFaction, newFaction.getClaimedChunks());
             }
         }
     }

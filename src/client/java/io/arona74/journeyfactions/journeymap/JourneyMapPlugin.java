@@ -14,17 +14,17 @@ public class JourneyMapPlugin implements IClientPlugin {
     private FactionOverlayManager overlayManager;
     
     public JourneyMapPlugin() {
-        // JourneyFactions.LOGGER.info("JourneyMapPlugin constructor called");
+        JourneyFactions.LOGGER.info("JourneyMapPlugin constructor called");
     }
     
     @Override
     public void initialize(IClientAPI jmClientApi) {
-        // JourneyFactions.LOGGER.info("JourneyMapPlugin.initialize() called");
+        JourneyFactions.LOGGER.info("JourneyMapPlugin.initialize() called");
         
         this.jmAPI = jmClientApi;
         this.overlayManager = new FactionOverlayManager(jmClientApi);
         
-        // JourneyFactions.LOGGER.info("JourneyMap integration initialized");
+        JourneyFactions.LOGGER.info("JourneyMap integration initialized");
         
         try {
             // Subscribe to relevant events
@@ -33,11 +33,11 @@ public class JourneyMapPlugin implements IClientPlugin {
                 ClientEvent.Type.MAPPING_STOPPED,
                 ClientEvent.Type.DISPLAY_UPDATE
             ));
-            // JourneyFactions.LOGGER.info("Subscribed to JourneyMap events");
+            JourneyFactions.LOGGER.info("Subscribed to JourneyMap events");
             
             // Connect to faction manager for updates
             JourneyFactions.getFactionManager().addListener(overlayManager);
-            // JourneyFactions.LOGGER.info("Connected to faction manager");
+            JourneyFactions.LOGGER.info("Connected to faction manager");
             
             // Initialize the faction toggle button/keybinding
             FactionToggleButton.initialize(jmClientApi);
@@ -45,10 +45,10 @@ public class JourneyMapPlugin implements IClientPlugin {
             // Initialize context menu integration
             JourneyMapContextIntegration.initialize(jmClientApi);
             
-            // JourneyFactions.LOGGER.info("Plugin initialization complete - waiting for mapping events");
+            JourneyFactions.LOGGER.info("Plugin initialization complete - waiting for mapping events");
             
         } catch (Exception e) {
-            // JourneyFactions.LOGGER.error("Error during JourneyMap plugin initialization", e);
+            JourneyFactions.LOGGER.error("Error during JourneyMap plugin initialization", e);
         }
     }
     
@@ -127,10 +127,10 @@ public class JourneyMapPlugin implements IClientPlugin {
             FactionToggleButton.cleanup();
             JourneyMapContextIntegration.cleanup();
             
-            // JourneyFactions.LOGGER.info("JourneyMapPlugin cleanup completed");
+            JourneyFactions.LOGGER.info("JourneyMapPlugin cleanup completed");
             
         } catch (Exception e) {
-            // JourneyFactions.LOGGER.error("Error during plugin cleanup", e);
+            JourneyFactions.LOGGER.error("Error during plugin cleanup", e);
         }
     }
 }
