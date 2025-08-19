@@ -480,36 +480,6 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         return points;
     }
     
-    private void removeOverlay(String factionId) {
-        // Remove main overlay and any region overlays
-        Set<String> overlaysToRemove = new HashSet<>();
-        
-        for (String overlayId : factionOverlays.keySet()) {
-            if (overlayId.equals(factionId) ||
-                overlayId.startsWith(factionId + "_region_") ||
-                overlayId.startsWith(factionId + "_label") ||
-                overlayId.contains("_region_") && overlayId.endsWith("_label")) {
-                overlaysToRemove.add(overlayId);
-            }
-        }
-        
-        for (String overlayId : overlaysToRemove) {
-            PolygonOverlay overlay = factionOverlays.remove(overlayId);
-            if (overlay != null) {
-                try {
-                    jmAPI.remove(overlay);
-                    // JourneyFactions.LOGGER.debug("Removed overlay: {}", overlayId);
-                } catch (Exception e) {
-                    // JourneyFactions.LOGGER.warn("Failed to remove overlay: {}", overlayId, e);
-                }
-            }
-        }
-        
-        if (!overlaysToRemove.isEmpty()) {
-            // JourneyFactions.LOGGER.info("Removed {} overlays for faction: {}", overlaysToRemove.size(), factionId);
-        }
-    }
-    
     private ShapeProperties createShapeProperties(ClientFaction faction) {
         Color factionColor = faction.getEffectiveColor();
         
@@ -574,34 +544,117 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     // FactionUpdateListener implementation
     @Override
     public void onFactionUpdated(ClientFaction faction) {
-        createOrUpdateFactionOverlay(faction, faction.getClaimedChunks());
+        // Check if faction is being disbanded (has no chunks but still exists)
+        if (faction.getClaimedChunks().isEmpty()) {
+            JourneyFactions.LOGGER.info("Faction {} appears to be disbanded - just cleaning overlays", faction.getName());
+            completelyRemoveFactionOverlays(faction.getId());
+            return;
+        }
+        
+        // Normal update for factions with chunks
+        JourneyFactions.LOGGER.info("Faction updated: {} - doing complete refresh", faction.getName());
+        completelyRefreshFaction(faction);
     }
     
     @Override
     public void onFactionRemoved(ClientFaction faction) {
-        removeOverlay(faction.getId());
+        JourneyFactions.LOGGER.info("Faction removed: {} - cleaning up all overlays", faction.getName());
+        completelyRemoveFactionOverlays(faction.getId());
     }
     
     @Override
     public void onChunkChanged(ChunkPos chunk, String oldFactionId, String newFactionId) {
-        // Update overlays for affected factions
-        if (oldFactionId != null) {
-            ClientFaction oldFaction = JourneyFactions.getFactionManager().getFaction(oldFactionId);
-            if (oldFaction != null) {
-                createOrUpdateFactionOverlay(oldFaction, oldFaction.getClaimedChunks());
+        // Only log chunk changes, don't automatically refresh
+        // The onFactionUpdated events will handle the refreshing
+        JourneyFactions.LOGGER.debug("Chunk changed: {} from {} to {} (will be handled by faction updates)", 
+            chunk, oldFactionId, newFactionId);
+    }
+
+    private void completelyRemoveFactionOverlays(String factionId) {
+        JourneyFactions.LOGGER.info("=== COMPLETELY REMOVING ALL OVERLAYS FOR FACTION: {} ===", factionId);
+        
+        // Find ALL overlay IDs that could possibly belong to this faction
+        Set<String> overlaysToRemove = new HashSet<>();
+        
+        for (String overlayId : factionOverlays.keySet()) {
+            // Match exact faction ID or anything starting with faction ID + underscore
+            if (overlayId.equals(factionId) || 
+                overlayId.startsWith(factionId + "_") ||
+                overlayId.contains(factionId)) {
+                overlaysToRemove.add(overlayId);
             }
         }
         
-        if (newFactionId != null) {
-            ClientFaction newFaction = JourneyFactions.getFactionManager().getFaction(newFactionId);
-            if (newFaction != null) {
-                createOrUpdateFactionOverlay(newFaction, newFaction.getClaimedChunks());
+        JourneyFactions.LOGGER.info("Found {} overlays to remove: {}", overlaysToRemove.size(), overlaysToRemove);
+        
+        // Remove each overlay from both JourneyMap and our tracking
+        for (String overlayId : overlaysToRemove) {
+            PolygonOverlay overlay = factionOverlays.get(overlayId);
+            if (overlay != null) {
+                try {
+                    // Remove from JourneyMap
+                    jmAPI.remove(overlay);
+                    JourneyFactions.LOGGER.info("Removed from JourneyMap: {}", overlayId);
+                } catch (Exception e) {
+                    JourneyFactions.LOGGER.error("Failed to remove overlay from JourneyMap: {} - {}", overlayId, e.getMessage());
+                }
+                
+                // Remove from our tracking
+                factionOverlays.remove(overlayId);
+                JourneyFactions.LOGGER.info("Removed from tracking: {}", overlayId);
             }
         }
+        
+        // Double-check: force remove any remaining overlays that might have been missed
+        Iterator<Map.Entry<String, PolygonOverlay>> iterator = factionOverlays.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, PolygonOverlay> entry = iterator.next();
+            if (entry.getKey().contains(factionId)) {
+                try {
+                    jmAPI.remove(entry.getValue());
+                    JourneyFactions.LOGGER.warn("Force removed missed overlay: {}", entry.getKey());
+                } catch (Exception e) {
+                    JourneyFactions.LOGGER.error("Failed to force remove overlay: {}", entry.getKey());
+                }
+                iterator.remove();
+            }
+        }
+        
+        JourneyFactions.LOGGER.info("=== COMPLETE REMOVAL FINISHED FOR FACTION: {} ===", factionId);
+    }
+
+    /**
+     * Complete clean and redraw for a faction
+     */
+    private void completelyRefreshFaction(ClientFaction faction) {
+        String factionId = faction.getId();
+        JourneyFactions.LOGGER.info("=== COMPLETE REFRESH STARTING FOR FACTION: {} ===", faction.getName());
+        
+        // Step 1: Nuclear removal of all overlays
+        completelyRemoveFactionOverlays(factionId);
+        
+        // Step 2: Short delay to ensure cleanup is processed
+        try {
+            Thread.sleep(100); // 100ms delay
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Step 3: Only recreate if faction has chunks
+        if (!faction.getClaimedChunks().isEmpty()) {
+            JourneyFactions.LOGGER.info("Recreating overlays for faction: {} with {} chunks", 
+                faction.getName(), faction.getClaimedChunks().size());
+            createOrUpdateFactionOverlay(faction, faction.getClaimedChunks());
+        } else {
+            JourneyFactions.LOGGER.info("Faction {} has no chunks, not recreating overlays", faction.getName());
+        }
+        
+        JourneyFactions.LOGGER.info("=== COMPLETE REFRESH FINISHED FOR FACTION: {} ===", faction.getName());
     }
     
     @Override
     public void onDataCleared() {
+        JourneyFactions.LOGGER.info("Data cleared - removing all faction overlays");
         clearAllOverlays();
     }
 }
