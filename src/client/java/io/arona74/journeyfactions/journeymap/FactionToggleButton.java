@@ -23,9 +23,9 @@ public class FactionToggleButton {
         try {
             setupKeybinding();
             isInitialized = true;
-            // JourneyFactions.LOGGER.info("Faction controls initialized successfully - Keybinding: 'G' key");
+            JourneyFactions.debugLog("Faction controls initialized successfully - Keybinding: 'G' key");
         } catch (Exception e) {
-            // JourneyFactions.LOGGER.error("Failed to initialize faction controls: {}", e.getMessage());
+            JourneyFactions.LOGGER.error("Failed to initialize faction controls: {}", e.getMessage());
             isInitialized = false;
         }
     }
@@ -35,7 +35,7 @@ public class FactionToggleButton {
      */
     private static void setupKeybinding() {
         try {
-            // JourneyFactions.LOGGER.info("Setting up faction toggle keybinding...");
+            JourneyFactions.debugLog("Setting up faction toggle keybinding...");
             
             // Create a keybinding for toggling faction display
             toggleKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -45,28 +45,28 @@ public class FactionToggleButton {
                 "category.journeyfactions" // Category
             ));
             
-            // JourneyFactions.LOGGER.info("Keybinding registered: {}", toggleKeyBinding != null ? "SUCCESS" : "FAILED");
+            JourneyFactions.debugLog("Keybinding registered: {}", toggleKeyBinding != null ? "SUCCESS" : "FAILED");
             
             if (toggleKeyBinding != null) {
-                // JourneyFactions.LOGGER.info("Keybinding details: {}", toggleKeyBinding.getBoundKeyLocalizedText().getString());
+                JourneyFactions.debugLog("Keybinding details: {}", toggleKeyBinding.getBoundKeyLocalizedText().getString());
             }
             
             // Register tick event to check for key presses
             ClientTickEvents.END_CLIENT_TICK.register(client -> {
                 try {
                     if (toggleKeyBinding != null && toggleKeyBinding.wasPressed()) {
-                        // JourneyFactions.LOGGER.info("'G' key pressed - toggling faction display");
+                        JourneyFactions.debugLog("'G' key pressed - toggling faction display");
                         toggleFactionDisplay();
                     }
                 } catch (Exception e) {
-                    // JourneyFactions.LOGGER.error("Error in keybinding tick event: {}", e.getMessage());
+                    JourneyFactions.LOGGER.error("Error in keybinding tick event: {}", e.getMessage());
                 }
             });
             
-            // JourneyFactions.LOGGER.info("Client tick event registered for keybinding monitoring");
+            JourneyFactions.debugLog("Client tick event registered for keybinding monitoring");
             
         } catch (Exception e) {
-            // JourneyFactions.LOGGER.error("Failed to setup keybinding: {}", e.getMessage());
+            JourneyFactions.LOGGER.error("Failed to setup keybinding: {}", e.getMessage());
             throw e;
         }
     }
@@ -76,16 +76,16 @@ public class FactionToggleButton {
      */
     private static void toggleFactionDisplay() {
         try {
-            // JourneyFactions.LOGGER.info("=== FACTION TOGGLE TRIGGERED ===");
+            JourneyFactions.debugLog("=== FACTION TOGGLE TRIGGERED ===");
             
             boolean wasEnabled = FactionDisplayManager.isFactionDisplayEnabled();
-            // JourneyFactions.LOGGER.info("Previous state: {}", wasEnabled ? "VISIBLE" : "HIDDEN");
+            JourneyFactions.debugLog("Previous state: {}", wasEnabled ? "VISIBLE" : "HIDDEN");
             
             // Perform the toggle
             FactionDisplayManager.toggleFactionDisplay();
             
             boolean isNowEnabled = FactionDisplayManager.isFactionDisplayEnabled();
-            // JourneyFactions.LOGGER.info("New state: {}", isNowEnabled ? "VISIBLE" : "HIDDEN");
+            JourneyFactions.debugLog("New state: {}", isNowEnabled ? "VISIBLE" : "HIDDEN");
             
             // Show message to player
             try {
@@ -105,18 +105,18 @@ public class FactionToggleButton {
                         false // Chat
                     );
                     
-                    // JourneyFactions.LOGGER.info("Sent toggle message to player");
+                    JourneyFactions.debugLog("Sent toggle message to player");
                 } else {
-                    // JourneyFactions.LOGGER.warn("No player available for toggle message");
+                    JourneyFactions.debugLog("No player available for toggle message");
                 }
             } catch (Exception e) {
-                // JourneyFactions.LOGGER.error("Could not send player message: {}", e.getMessage());
+                JourneyFactions.LOGGER.error("Could not send player message: {}", e.getMessage());
             }
             
-            // JourneyFactions.LOGGER.info("=== FACTION TOGGLE COMPLETE ===");
+            JourneyFactions.debugLog("=== FACTION TOGGLE COMPLETE ===");
             
         } catch (Exception e) {
-            // JourneyFactions.LOGGER.error("Error during faction toggle: {}", e.getMessage());
+            JourneyFactions.LOGGER.error("Error during faction toggle: {}", e.getMessage());
         }
     }
     
@@ -124,25 +124,25 @@ public class FactionToggleButton {
      * Check if keybinding is working
      */
     public static void testKeybinding() {
-        // JourneyFactions.LOGGER.info("=== KEYBINDING TEST ===");
-        // JourneyFactions.LOGGER.info("Initialized: {}", isInitialized);
-        // JourneyFactions.LOGGER.info("Keybinding object: {}", toggleKeyBinding != null ? "EXISTS" : "NULL");
+        JourneyFactions.debugLog("=== KEYBINDING TEST ===");
+        JourneyFactions.debugLog("Initialized: {}", isInitialized);
+        JourneyFactions.debugLog("Keybinding object: {}", toggleKeyBinding != null ? "EXISTS" : "NULL");
         
         if (toggleKeyBinding != null) {
-            // JourneyFactions.LOGGER.info("Bound key: {}", toggleKeyBinding.getBoundKeyLocalizedText().getString());
-            // JourneyFactions.LOGGER.info("Translation key: {}", toggleKeyBinding.getTranslationKey());
-            // JourneyFactions.LOGGER.info("Category: {}", toggleKeyBinding.getCategory());
+            JourneyFactions.debugLog("Bound key: {}", toggleKeyBinding.getBoundKeyLocalizedText().getString());
+            JourneyFactions.debugLog("Translation key: {}", toggleKeyBinding.getTranslationKey());
+            JourneyFactions.debugLog("Category: {}", toggleKeyBinding.getCategory());
         }
         
-        // JourneyFactions.LOGGER.info("Try pressing the key now and watch the logs");
-        // JourneyFactions.LOGGER.info("=== END KEYBINDING TEST ===");
+        JourneyFactions.debugLog("Try pressing the key now and watch the logs");
+        JourneyFactions.debugLog("=== END KEYBINDING TEST ===");
     }
     
     /**
      * Force trigger toggle (for testing)
      */
     public static void forceTrigger() {
-        // JourneyFactions.LOGGER.info("=== FORCE TRIGGERING TOGGLE ===");
+        JourneyFactions.debugLog("=== FORCE TRIGGERING TOGGLE ===");
         toggleFactionDisplay();
     }
     
@@ -150,7 +150,7 @@ public class FactionToggleButton {
      * Manual toggle method for debug commands
      */
     public static void manualToggle() {
-        // JourneyFactions.LOGGER.info("=== MANUAL TOGGLE CALLED ===");
+        JourneyFactions.debugLog("=== MANUAL TOGGLE CALLED ===");
         toggleFactionDisplay();
     }
     
@@ -169,31 +169,10 @@ public class FactionToggleButton {
     }
     
     /**
-     * Show comprehensive help information
-     */
-    public static void showHelp() {
-        // JourneyFactions.LOGGER.info("=== FACTION CONTROLS HELP ===");
-        // JourneyFactions.LOGGER.info("Status: {}", getStatus());
-        
-        // if (toggleKeyBinding != null) {
-        //     JourneyFactions.LOGGER.info("Primary method: Press '{}' key to toggle faction territories", 
-        //         toggleKeyBinding.getBoundKeyLocalizedText().getString());
-        // } else {
-        //     JourneyFactions.LOGGER.info("Keybinding not available!");
-        // }
-        
-        // JourneyFactions.LOGGER.info("Alternative methods:");
-        // JourneyFactions.LOGGER.info("  FactionToggleButton.manualToggle() - Manual toggle");
-        // JourneyFactions.LOGGER.info("  FactionToggleButton.forceTrigger() - Force trigger");
-        // JourneyFactions.LOGGER.info("  FactionToggleButton.testKeybinding() - Test keybinding setup");
-        // JourneyFactions.LOGGER.info("==============================");
-    }
-    
-    /**
      * Cleanup method
      */
     public static void cleanup() {
-        // JourneyFactions.LOGGER.info("FactionToggleButton cleanup completed");
+        JourneyFactions.debugLog("FactionToggleButton cleanup completed");
         isInitialized = false;
     }
 }

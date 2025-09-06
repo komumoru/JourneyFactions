@@ -60,13 +60,13 @@ public class ClientFactionManager {
             // Update chunk mapping
             updateChunkMapping(existing);
             
-            // JourneyFactions.LOGGER.debug("Updated faction: {}", factionId);
+            JourneyFactions.debugLog("Updated faction: {}", factionId);
         } else {
             // Add new faction
             factions.put(factionId, faction);
             updateChunkMapping(faction);
             
-            // JourneyFactions.LOGGER.info("Added new faction: {} ({})", faction.getName(), factionId);
+            JourneyFactions.debugLog("Added new faction: {} ({})", faction.getName(), factionId);
         }
 
         // Notify listeners
@@ -79,7 +79,7 @@ public class ClientFactionManager {
             // Remove chunk mappings
             faction.getClaimedChunks().forEach(chunkToFaction::remove);
             
-            // JourneyFactions.LOGGER.info("Removed faction: {}", factionId);
+            JourneyFactions.debugLog("Removed faction: {}", factionId);
             notifyFactionRemoved(faction);
         }
     }
@@ -148,7 +148,7 @@ public class ClientFactionManager {
         chunkToFaction.clear();
         initializeDefaultFactions();
         
-        // JourneyFactions.LOGGER.info("Cleared all faction data");
+        JourneyFactions.debugLog("Cleared all faction data");
         notifyDataCleared();
     }
 

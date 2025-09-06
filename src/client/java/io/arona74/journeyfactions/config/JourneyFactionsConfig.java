@@ -1,14 +1,23 @@
 package io.arona74.journeyfactions.config;
 
-public final class JourneyFactionsConfig {
-    private JourneyFactionsConfig() {}
+import me.shedaniel.autoconfig.ConfigData;
+import me.shedaniel.autoconfig.annotation.Config;
+import me.shedaniel.autoconfig.annotation.ConfigEntry;
 
-    /** Put the faction name on a separate, label-only overlay. */
-    public static boolean separateLabelOverlay = true;
-
-    /** Where to anchor the label inside a region. */
-    public static LabelAnchorMode labelAnchorMode = LabelAnchorMode.HULL_CENTROID;
-
+@Config(name = "journeyfactions")
+public class JourneyFactionsConfig implements ConfigData {
+    
+    @ConfigEntry.Gui.Tooltip
+    @ConfigEntry.BoundedDiscrete(min = 0, max = 1)
+    public boolean separateLabelOverlay = true;
+    
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    public LabelAnchorMode labelAnchorMode = LabelAnchorMode.HULL_CENTROID;
+    
+    @ConfigEntry.Gui.Tooltip
+    @ConfigEntry.BoundedDiscrete(min = 0, max = 1)
+    public boolean debugMode = false;
+    
     public enum LabelAnchorMode {
         /** BFS from perimeter to find the chunk farthest from any edge/hole. */
         FARTHEST_INTERIOR_CHUNK,

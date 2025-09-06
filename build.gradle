@@ -3,7 +3,10 @@ plugins {
     id 'maven-publish'
 }
 
-archivesBaseName = "${project.name}-mc${project.minecraft_version}"
+// Modern Gradle syntax - no more deprecation warnings
+base {
+    archivesName = "${project.name}-mc${project.minecraft_version}"
+}
 version = project.mod_version
 group = project.maven_group
 
@@ -21,6 +24,15 @@ repositories {
     maven {
         name = "Modrinth"
         url = "https://api.modrinth.com/maven"
+    }
+    // Cloth Config repository
+    maven {
+        name = "Shedaniel Maven"
+        url = "https://maven.shedaniel.me/"
+    }
+    maven {
+        name = "TerraformersMC"
+        url = "https://maven.terraformersmc.com/releases/"
     }
 }
 
@@ -48,13 +60,41 @@ dependencies {
     
     // JourneyMap API
     modApi("info.journeymap:journeymap-api:1.20-1.9-fabric-SNAPSHOT") { changing = true }
+
+    // Cloth config - updated to correct version and repository
+    modApi("me.shedaniel.cloth:cloth-config-fabric:11.1.118") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+    include "me.shedaniel.cloth:cloth-config-fabric:11.1.118"
+    
+    // ModMenu for config screen integration
+    modImplementation "com.terraformersmc:modmenu:7.2.2"
 }
 
 processResources {
-    inputs.property "version", project.version
+    inputs.property "version", version
+    filteringCharset "UTF-8"
    
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand([
+            "version": version,
+            "minecraft_version": project.minecraft_version,
+            "loader_version": project.loader_version
+        ])
+    }
+}
+
+// Process client resources (where your fabric.mod.json actually lives)
+processClientResources {
+    inputs.property "version", version
+    filteringCharset "UTF-8"
+   
+    filesMatching("fabric.mod.json") {
+        expand([
+            "version": version,
+            "minecraft_version": project.minecraft_version,
+            "loader_version": project.loader_version
+        ])
     }
 }
 
@@ -66,6 +106,6 @@ java {
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}" }
+        rename { "${it}_${base.archivesName.get()}" }
     }
 }

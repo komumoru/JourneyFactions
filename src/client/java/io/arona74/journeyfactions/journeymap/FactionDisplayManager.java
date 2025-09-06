@@ -15,7 +15,7 @@ public class FactionDisplayManager {
      */
     public static void initialize(FactionOverlayManager manager) {
         overlayManager = manager;
-        JourneyFactions.LOGGER.info("FactionDisplayManager initialized");
+        JourneyFactions.debugLog("FactionDisplayManager initialized");
     }
     
     /**
@@ -32,7 +32,7 @@ public class FactionDisplayManager {
         factionDisplayEnabled = !factionDisplayEnabled;
         updateAllOverlayVisibility();
         
-        JourneyFactions.LOGGER.info("Faction display toggled to: {}", factionDisplayEnabled ? "ENABLED" : "DISABLED");
+        JourneyFactions.debugLog("Faction display toggled to: {}", factionDisplayEnabled ? "ENABLED" : "DISABLED");
     }
     
     /**
@@ -43,7 +43,7 @@ public class FactionDisplayManager {
             factionDisplayEnabled = enabled;
             updateAllOverlayVisibility();
             
-            JourneyFactions.LOGGER.info("Faction display set to: {}", enabled ? "ENABLED" : "DISABLED");
+            JourneyFactions.debugLog("Faction display set to: {}", enabled ? "ENABLED" : "DISABLED");
         }
     }
     

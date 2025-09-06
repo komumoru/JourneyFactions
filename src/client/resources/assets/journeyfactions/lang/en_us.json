@@ -1,0 +1,13 @@
+{
+  "text.autoconfig.journeyfactions.title": "JourneyFactions Configuration",
+  "text.autoconfig.journeyfactions.category.default": "General Settings",
+  
+  "text.autoconfig.journeyfactions.option.separateLabelOverlay": "Separate Label Overlay",
+  "text.autoconfig.journeyfactions.option.separateLabelOverlay.@Tooltip": "Put faction names on a separate, label-only overlay instead of directly on the territory polygon",
+  
+  "text.autoconfig.journeyfactions.option.labelAnchorMode": "Label Anchor Mode",
+  "text.autoconfig.journeyfactions.option.labelAnchorMode.@Tooltip": "Where to position the faction label within the territory. Options: 'Territory Center' (geometric center), 'Farthest Interior' (best for complex shapes), 'First Chunk' (simple fallback)",
+  
+  "text.autoconfig.journeyfactions.option.debugMode": "Debug Mode",
+  "text.autoconfig.journeyfactions.option.debugMode.@Tooltip": "Enable detailed debug logging for troubleshooting. Shows information about faction processing, overlay creation, and map updates"
+}
