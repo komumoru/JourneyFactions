@@ -39,7 +39,7 @@ JourneyFactions is a **client-side only** mod that:
 3. **Creates JourneyMap overlays** using clean polygon rendering
 4. **Updates in real-time** as territories change
 
-### Need a specific version of Faction Mod (Fork made by Arona74)
+### Need a specific version of Factions Mod (Fork made by Arona74)
 https://github.com/Arona74/factions
 
 ## Configuration
