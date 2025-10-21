@@ -17,7 +17,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.*;
 
 public class FactionOverlayManager implements ClientFactionManager.FactionUpdateListener, ClientFactionManager.ChunkDiscoveryListener {
