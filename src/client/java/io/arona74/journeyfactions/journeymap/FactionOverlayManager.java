@@ -19,9 +19,8 @@ import net.minecraft.world.World;
 
 import java.awt.*;
 import java.util.*;
-import java.util.List;
 
-public class FactionOverlayManager implements ClientFactionManager.FactionUpdateListener {
+public class FactionOverlayManager implements ClientFactionManager.FactionUpdateListener, ClientFactionManager.ChunkDiscoveryListener {
     
     private final IClientAPI jmAPI;
     private final Map<String, PolygonOverlay> factionOverlays;
@@ -185,11 +184,11 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
             JourneyFactions.debugLog("Loading faction overlays...");
             Collection<ClientFaction> factions = JourneyFactions.getFactionManager().getAllFactions();
             JourneyFactions.debugLog("Found {} factions to process", factions.size());
-            
+
             for (ClientFaction faction : factions) {
                 JourneyFactions.debugLog("Processing faction: {} (type: {}, chunks: {})",faction.getName(), faction.getType(), faction.getClaimedChunks().size());
-                
-                // Only display factions that have claimed territory
+
+                // Only display factions that have claimed territory and that the player has discovered
                 if (!faction.getClaimedChunks().isEmpty()) {
                     createOrUpdateFactionOverlay(faction, faction.getClaimedChunks());
                 } else {
@@ -238,21 +237,28 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
         if (faction == null || claimedChunks.isEmpty()) {
             return;
         }
-        
+
+        Set<ChunkPos> visibleChunks = JourneyFactions.getFactionManager().getDiscoveredClaims(claimedChunks);
+        if (visibleChunks.isEmpty()) {
+            JourneyFactions.debugLog("Skipping overlay for faction {} - no discovered chunks yet", faction.getDisplayName());
+            return;
+        }
+
         String factionId = faction.getId();
         RegistryKey<World> worldKey = World.OVERWORLD;
-        
-        JourneyFactions.debugLog("Creating overlay for faction: {} with {} chunks", faction.getDisplayName(), claimedChunks.size());
-        
+
+        JourneyFactions.debugLog("Creating overlay for faction: {} with {} discovered chunks ({} total)",
+            faction.getDisplayName(), visibleChunks.size(), claimedChunks.size());
+
         // Sort connected regions by size so overlays match
-        List<Set<ChunkPos>> regions = findConnectedRegions(claimedChunks);
+        List<Set<ChunkPos>> regions = findConnectedRegions(visibleChunks);
         regions.sort((a, b) -> Integer.compare(b.size(), a.size()));
-        
+
         JourneyFactions.debugLog("Found {} connected regions for faction {}", regions.size(), faction.getDisplayName());
-        
+
         try {
             // Build polygons with holes preserved
-            List<MapPolygonWithHoles> polygons = buildPolygonsUsingJourneyMapHelper(claimedChunks);
+            List<MapPolygonWithHoles> polygons = buildPolygonsUsingJourneyMapHelper(visibleChunks);
             if (polygons.isEmpty()) {
                 JourneyFactions.debugLog("No polygons generated for faction {}", faction.getDisplayName());
                 return;
@@ -301,7 +307,7 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
                 
                 // --- 2) Optional: separate label-only overlay ---
                 if (JourneyFactions.CONFIG.separateLabelOverlay) {
-                    Set<ChunkPos> region = (i < regions.size()) ? regions.get(i) : claimedChunks;
+                    Set<ChunkPos> region = (i < regions.size()) ? regions.get(i) : visibleChunks;
                     BlockPos anchor;
                     
                                         JourneyFactions.debugLog("Computing label anchor using mode: {}", JourneyFactions.CONFIG.labelAnchorMode);
@@ -590,8 +596,18 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
     public void onChunkChanged(ChunkPos chunk, String oldFactionId, String newFactionId) {
         // Only log chunk changes, don't automatically refresh
         // The onFactionUpdated events will handle the refreshing
-        JourneyFactions.LOGGER.debug("Chunk changed: {} from {} to {} (will be handled by faction updates)", 
+        JourneyFactions.LOGGER.debug("Chunk changed: {} from {} to {} (will be handled by faction updates)",
             chunk, oldFactionId, newFactionId);
+    }
+
+    @Override
+    public void onChunkDiscovered(ChunkPos chunk, ClientFaction owningFaction) {
+        if (owningFaction == null) {
+            return;
+        }
+
+        JourneyFactions.debugLog("Chunk {} discovered for faction {} - refreshing overlays", chunk, owningFaction.getName());
+        completelyRefreshFaction(owningFaction, true);
     }
 
     private void completelyRemoveFactionOverlays(String factionId) {
@@ -651,22 +667,28 @@ public class FactionOverlayManager implements ClientFactionManager.FactionUpdate
      * Complete clean and redraw for a faction
      */
     private void completelyRefreshFaction(ClientFaction faction) {
+        completelyRefreshFaction(faction, false);
+    }
+
+    private void completelyRefreshFaction(ClientFaction faction, boolean skipDelay) {
         String factionId = faction.getId();
         JourneyFactions.debugLog("=== COMPLETE REFRESH STARTING FOR FACTION: {} ===", faction.getName());
-        
+
         // Step 1: Nuclear removal of all overlays
         completelyRemoveFactionOverlays(factionId);
-        
+
         // Step 2: Short delay to ensure cleanup is processed
-        try {
-            Thread.sleep(100); // 100ms delay
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        if (!skipDelay) {
+            try {
+                Thread.sleep(100); // 100ms delay
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
-        
+
         // Step 3: Only recreate if faction has chunks
         if (!faction.getClaimedChunks().isEmpty()) {
-            JourneyFactions.debugLog("Recreating overlays for faction: {} with {} chunks", 
+            JourneyFactions.debugLog("Recreating overlays for faction: {} with {} chunks",
                 faction.getName(), faction.getClaimedChunks().size());
             createOrUpdateFactionOverlay(faction, faction.getClaimedChunks());
         } else {

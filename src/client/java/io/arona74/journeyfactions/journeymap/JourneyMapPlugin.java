@@ -37,6 +37,7 @@ public class JourneyMapPlugin implements IClientPlugin {
             
             // Connect to faction manager for updates
             JourneyFactions.getFactionManager().addListener(overlayManager);
+            JourneyFactions.getFactionManager().addDiscoveryListener(overlayManager);
             JourneyFactions.debugLog("Connected to faction manager");
             
             // Initialize the faction toggle button/keybinding
@@ -122,6 +123,7 @@ public class JourneyMapPlugin implements IClientPlugin {
             if (overlayManager != null) {
                 overlayManager.clearAllOverlays();
                 JourneyFactions.getFactionManager().removeListener(overlayManager);
+                JourneyFactions.getFactionManager().removeDiscoveryListener(overlayManager);
             }
             
             FactionToggleButton.cleanup();
