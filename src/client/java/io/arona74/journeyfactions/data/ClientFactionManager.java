@@ -13,6 +13,8 @@ public class ClientFactionManager {
     private final Map<String, ClientFaction> factions = new ConcurrentHashMap<>();
     private final Map<ChunkPos, String> chunkToFaction = new ConcurrentHashMap<>();
     private final Set<FactionUpdateListener> listeners = new HashSet<>();
+    private final Set<ChunkPos> discoveredChunks = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<ChunkDiscoveryListener> discoveryListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
     
     // Special faction IDs
     public static final String WILDERNESS_ID = "wilderness";
@@ -146,8 +148,9 @@ public class ClientFactionManager {
     public void clear() {
         factions.clear();
         chunkToFaction.clear();
+        resetDiscoveredChunks();
         initializeDefaultFactions();
-        
+
         JourneyFactions.debugLog("Cleared all faction data");
         notifyDataCleared();
     }
@@ -155,6 +158,7 @@ public class ClientFactionManager {
     public void cleanup() {
         clear();
         listeners.clear();
+        discoveryListeners.clear();
     }
 
     // Statistics
@@ -178,12 +182,60 @@ public class ClientFactionManager {
         void onDataCleared();
     }
 
+    public interface ChunkDiscoveryListener {
+        void onChunkDiscovered(ChunkPos chunk, ClientFaction owningFaction);
+    }
+
     public void addListener(FactionUpdateListener listener) {
         listeners.add(listener);
     }
 
     public void removeListener(FactionUpdateListener listener) {
         listeners.remove(listener);
+    }
+
+    public void addDiscoveryListener(ChunkDiscoveryListener listener) {
+        discoveryListeners.add(listener);
+    }
+
+    public void removeDiscoveryListener(ChunkDiscoveryListener listener) {
+        discoveryListeners.remove(listener);
+    }
+
+    public boolean isChunkDiscovered(ChunkPos chunk) {
+        return discoveredChunks.contains(chunk);
+    }
+
+    public void markChunkDiscovered(ChunkPos chunk) {
+        if (chunk == null) {
+            return;
+        }
+
+        if (discoveredChunks.add(chunk)) {
+            JourneyFactions.debugLog("Chunk discovered by client: {}", chunk);
+            notifyChunkDiscovered(chunk);
+        }
+    }
+
+    public void resetDiscoveredChunks() {
+        if (!discoveredChunks.isEmpty()) {
+            JourneyFactions.debugLog("Resetting discovered chunk cache ({} chunks)", discoveredChunks.size());
+            discoveredChunks.clear();
+        }
+    }
+
+    public Set<ChunkPos> getDiscoveredClaims(Collection<ChunkPos> claimedChunks) {
+        if (claimedChunks == null || claimedChunks.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        Set<ChunkPos> visibleChunks = new HashSet<>();
+        for (ChunkPos chunk : claimedChunks) {
+            if (isChunkDiscovered(chunk)) {
+                visibleChunks.add(chunk);
+            }
+        }
+        return visibleChunks;
     }
 
     private void notifyFactionUpdated(ClientFaction faction) {
@@ -222,6 +274,19 @@ public class ClientFactionManager {
                 listener.onDataCleared();
             } catch (Exception e) {
                 JourneyFactions.LOGGER.error("Error notifying data clear listener", e);
+            }
+        });
+    }
+
+    private void notifyChunkDiscovered(ChunkPos chunk) {
+        String factionId = chunkToFaction.get(chunk);
+        ClientFaction owningFaction = factionId != null ? factions.get(factionId) : null;
+
+        discoveryListeners.forEach(listener -> {
+            try {
+                listener.onChunkDiscovered(chunk, owningFaction);
+            } catch (Exception e) {
+                JourneyFactions.LOGGER.error("Error notifying chunk discovery listener", e);
             }
         });
     }

@@ -1,6 +1,7 @@
 package io.arona74.journeyfactions;
 
 import io.arona74.journeyfactions.config.JourneyFactionsConfig;
+import io.arona74.journeyfactions.data.ClientDiscoveryTracker;
 import io.arona74.journeyfactions.data.ClientFactionManager;
 import io.arona74.journeyfactions.network.ClientNetworkHandler;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -30,7 +31,10 @@ public class JourneyFactions implements ClientModInitializer {
         // Initialize client-side faction data manager
         factionManager = new ClientFactionManager();
         debugLog("ClientFactionManager initialized");
-        
+
+        // Track which chunks the client has actually discovered
+        ClientDiscoveryTracker.initialize();
+
         // Initialize network handling
         ClientNetworkHandler.initialize();
         debugLog("ClientNetworkHandler initialized");
